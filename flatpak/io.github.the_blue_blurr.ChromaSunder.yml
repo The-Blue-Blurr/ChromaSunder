@@ -1,0 +1,32 @@
+app-id: io.github.the_blue_blurr.ChromaSunder
+runtime: org.gnome.Platform
+runtime-version: '48'
+sdk: org.gnome.Sdk
+command: chromasunder
+build-options:
+  env:
+    PIP_DISABLE_PIP_VERSION_CHECK: '1'
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+modules:
+  - name: pillow
+    buildsystem: simple
+    build-commands:
+      - python3 -m pip install --no-cache-dir --prefix=/app 'Pillow>=10.0'
+  - name: chromasunder
+    buildsystem: simple
+    build-commands:
+      - python3 -m pip install --no-cache-dir --no-deps --prefix=/app .
+      - install -D data/io.github.the_blue_blurr.ChromaSunder.desktop /app/share/applications/io.github.the_blue_blurr.ChromaSunder.desktop
+      - install -D data/io.github.the_blue_blurr.ChromaSunder.metainfo.xml /app/share/metainfo/io.github.the_blue_blurr.ChromaSunder.metainfo.xml
+      - install -D data/io.github.the_blue_blurr.ChromaSunder.gschema.xml /app/share/glib-2.0/schemas/io.github.the_blue_blurr.ChromaSunder.gschema.xml
+      - install -D data/icons/io.github.the_blue_blurr.ChromaSunder.svg /app/share/icons/hicolor/scalable/apps/io.github.the_blue_blurr.ChromaSunder.svg
+      - install -D flatpak/ChromaSunder.flatpakref /app/share/doc/chromasunder/ChromaSunder.flatpakref
+      - install -D README.md /app/share/doc/chromasunder/README.md
+    sources:
+      - type: dir
+        path: ..
+

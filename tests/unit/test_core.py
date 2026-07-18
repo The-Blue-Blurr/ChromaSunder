@@ -1,0 +1,197 @@
+from __future__ import annotations
+
+import random
+import unittest
+
+from PIL import Image
+
+from chromasunder.core.enums import IntervalFunction, SortingFunction
+from chromasunder.core.exporting import save_jpeg, save_png
+from chromasunder.core.imaging import normalize_binary_image, normalize_image
+from chromasunder.core.models import PixelSortSettings
+from chromasunder.core.processing import process_image
+from chromasunder.core.validation import ValidationError
+
+
+def make_image(width: int = 16, height: int = 8) -> Image.Image:
+    image = Image.new("RGBA", (width, height))
+    for y in range(height):
+        for x in range(width):
+            image.putpixel((x, y), ((x * 17) % 256, (y * 31) % 256, ((x + y) * 23) % 256, 255))
+    return image
+
+
+class CoreEngineTests(unittest.TestCase):
+    def test_all_sorting_modes_render(self):
+        source = make_image()
+        try:
+            for function in SortingFunction:
+                with self.subTest(function=function):
+                    rendered = process_image(
+                        source,
+                        PixelSortSettings(
+                            interval_function=IntervalFunction.NONE,
+                            sorting_function=function,
+                            seed=42,
+                        ),
+                    )
+                    self.assertEqual(rendered.size, source.size)
+                    self.assertEqual(rendered.mode, "RGBA")
+                    rendered.close()
+        finally:
+            source.close()
+
+    def test_all_interval_modes_render(self):
+        source = make_image()
+        interval = Image.new("L", source.size, 0)
+        for y in range(source.height):
+            for x in range(2, 12):
+                interval.putpixel((x, y), 255)
+        try:
+            for function in IntervalFunction:
+                with self.subTest(function=function):
+                    settings = PixelSortSettings(
+                        interval_function=function,
+                        characteristic_length=4,
+                        seed=42,
+                    )
+                    rendered = process_image(
+                        source,
+                        settings,
+                        interval_image=interval
+                        if function in {IntervalFunction.FILE, IntervalFunction.FILE_EDGES}
+                        else None,
+                    )
+                    self.assertEqual(rendered.size, source.size)
+                    rendered.close()
+        finally:
+            source.close()
+            interval.close()
+
+    def test_seed_is_deterministic_and_changes_random_intervals(self):
+        source = make_image(48, 4)
+        try:
+            first = process_image(
+                source,
+                PixelSortSettings(interval_function="random", characteristic_length=5, seed=10),
+            )
+            second = process_image(
+                source,
+                PixelSortSettings(interval_function="random", characteristic_length=5, seed=10),
+            )
+            different = process_image(
+                source,
+                PixelSortSettings(interval_function="random", characteristic_length=5, seed=11),
+            )
+            self.assertEqual(first.tobytes(), second.tobytes())
+            self.assertNotEqual(first.tobytes(), different.tobytes())
+            first.close()
+            second.close()
+            different.close()
+        finally:
+            source.close()
+
+    def test_dedicated_rng_is_used_without_global_random_state(self):
+        source = make_image(32, 2)
+        random.seed(123)
+        before = random.getstate()
+        rendered = process_image(source, PixelSortSettings(interval_function="random", seed=3))
+        after = random.getstate()
+        self.assertEqual(before, after)
+        rendered.close()
+        source.close()
+
+    def test_threshold_mode_honors_both_bounds(self):
+        source = Image.new("RGBA", (4, 1))
+        for x, value in enumerate((0.1, 0.3, 0.6, 0.9)):
+            channel = int(value * 255)
+            source.putpixel((x, 0), (channel, channel, channel, 255))
+        rendered = process_image(
+            source,
+            PixelSortSettings(
+                interval_function="threshold",
+                lower_threshold=0.25,
+                upper_threshold=0.7,
+                seed=1,
+            ),
+        )
+        self.assertEqual(rendered.size, source.size)
+        rendered.close()
+        source.close()
+
+    def test_mask_black_preserves_pixels(self):
+        source = Image.new("RGBA", (4, 1))
+        values = [(255, 0, 0, 255), (0, 0, 0, 255), (0, 0, 255, 255), (255, 255, 255, 255)]
+        for x, value in enumerate(values):
+            source.putpixel((x, 0), value)
+        mask = Image.new("L", (4, 1), 0)
+        mask.putpixel((2, 0), 255)
+        mask.putpixel((3, 0), 255)
+        rendered = process_image(
+            source, PixelSortSettings(interval_function="none", seed=1), mask=mask
+        )
+        self.assertEqual(rendered.getpixel((0, 0)), values[0])
+        self.assertEqual(rendered.getpixel((1, 0)), values[1])
+        self.assertEqual(
+            sorted(rendered.getpixel((x, 0))[:3] for x in (2, 3)),
+            sorted(values[x][:3] for x in (2, 3)),
+        )
+        source.close()
+        mask.close()
+        rendered.close()
+
+    def test_angle_returns_original_dimensions(self):
+        source = make_image(20, 12)
+        rendered = process_image(
+            source, PixelSortSettings(interval_function="none", angle=45, seed=1)
+        )
+        self.assertEqual(rendered.size, source.size)
+        rendered.close()
+        source.close()
+
+
+class ImagingAndExportTests(unittest.TestCase):
+    def test_normalization_applies_orientation_and_rejects_animation(self):
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as directory:
+            animation_path = __import__("pathlib").Path(directory) / "animation.gif"
+            first = Image.new("RGBA", (2, 2), (0, 0, 0, 255))
+            second = Image.new("RGBA", (2, 2), (255, 255, 255, 255))
+            first.save(animation_path, save_all=True, append_images=[second], duration=100, loop=0)
+            first.close()
+            second.close()
+            with self.assertRaises(ValidationError) as context:
+                normalize_image(animation_path)
+        self.assertEqual(context.exception.category, "animated-or-multipage")
+
+    def test_binary_image_requires_exact_dimensions(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "mask.png"
+            Image.new("L", (2, 2), 255).save(path)
+            with self.assertRaises(ValidationError):
+                normalize_binary_image(path, (3, 3))
+
+    def test_atomic_png_and_jpeg_exports(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as directory:
+            source = make_image(6, 4)
+            png = Path(directory) / "out.png"
+            jpg = Path(directory) / "out.jpg"
+            save_png(source, png)
+            save_jpeg(source, jpg)
+            with Image.open(png) as saved_png:
+                self.assertEqual(saved_png.mode, "RGBA")
+                self.assertFalse(saved_png.getexif())
+            with Image.open(jpg) as saved_jpg:
+                self.assertEqual(saved_jpg.mode, "RGB")
+            source.close()
+
+
+if __name__ == "__main__":
+    unittest.main()

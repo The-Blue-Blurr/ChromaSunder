@@ -1,0 +1,8 @@
+[Flatpak Ref]
+Title=ChromaSunder
+Name=io.github.the_blue_blurr.ChromaSunder
+Branch=stable
+Url=https://the-blue-blurr.github.io/ChromaSunder/repo/ChromaSunder.flatpakrepo
+IsRuntime=false
+RuntimeRepo=https://sdk.gnome.org/gnome.flatpakrepo
+GPGKey=

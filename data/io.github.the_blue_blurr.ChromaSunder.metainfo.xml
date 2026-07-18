@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.the_blue_blurr.ChromaSunder</id>
+  <name>ChromaSunder</name>
+  <summary>Graphical pixel sorting for Fedora GNOME</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.the_blue_blurr">
+    <name>The-Blue-Blurr</name>
+  </developer>
+  <description>
+    <p>ChromaSunder is a dark-mode GTK application for pixel sorting PNG and JPEG images.</p>
+    <p>It supports full-resolution worker rendering, masks, interval images, settings presets, and sequential batches.</p>
+  </description>
+  <launchable type="desktop-id">io.github.the_blue_blurr.ChromaSunder.desktop</launchable>
+  <url type="homepage">https://github.com/The-Blue-Blurr/ChromaSunder</url>
+  <url type="bugtracker">https://github.com/The-Blue-Blurr/ChromaSunder/issues</url>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="1.0.0" date="2026-07-18">
+      <description><p>Initial MVP release.</p></description>
+    </release>
+  </releases>
+</component>
+

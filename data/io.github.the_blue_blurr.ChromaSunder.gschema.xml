@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="chromasunder">
+  <schema id="io.github.the_blue_blurr.ChromaSunder" path="/io/github/the_blue_blurr/ChromaSunder/">
+    <key name="last-processing-settings" type="s"><default>'{}'</default><summary>Last processing settings</summary></key>
+    <key name="jpeg-quality" type="i"><default>95</default><summary>JPEG quality</summary></key>
+    <key name="jpeg-background" type="s"><default>'black'</default><summary>JPEG background</summary></key>
+    <key name="last-output-mode" type="s"><default>'png'</default><summary>Last output mode</summary></key>
+    <key name="window-width" type="i"><default>1280</default><summary>Window width</summary></key>
+    <key name="window-height" type="i"><default>860</default><summary>Window height</summary></key>
+    <key name="window-maximized" type="b"><default>false</default><summary>Window maximized state</summary></key>
+    <key name="batch-queue-expanded" type="b"><default>false</default><summary>Batch queue expansion</summary></key>
+    <key name="default-output-suffix" type="s"><default>'_pxsorted'</default><summary>Output suffix</summary></key>
+  </schema>
+</schemalist>
+
