@@ -18,7 +18,7 @@ def main() -> int:
         import gi
 
         gi.require_version("Adw", "1")
-        from gi.repository import Adw, Gio
+        from gi.repository import Adw, Gio, Gtk
     except ImportError as exc:
         raise SystemExit(
             "ChromaSunder requires GTK 4, libadwaita, PyGObject, and Pillow. "
@@ -61,7 +61,7 @@ def main() -> int:
                 developer_name="The-Blue-Blurr",
                 comments="A modernized pixel sorting application for Fedora GNOME.",
                 website="https://github.com/The-Blue-Blurr/ChromaSunder",
-                license_type=Gio.License.MIT_X11,
+                license_type=Gtk.License.MIT_X11,
                 developers=["The-Blue-Blurr", "Satyarth and the original Pixelsort contributors"],
                 designers=["Kim Asendorf, foundational ASDFPixelSort inspiration"],
             )

@@ -47,6 +47,104 @@ from chromasunder.worker.controller import WorkerController, clean_abandoned_cac
 
 APP_TITLE = "Chroma Sunder"
 
+SETTING_HELP = {
+    "interval_function": (
+        "Controls how each row is divided into intervals. Pixels are sorted only within each "
+        "interval and never across its boundaries."
+    ),
+    "sorting_function": (
+        "Controls which color property is used to arrange pixels inside every sorting interval."
+    ),
+    "lower_threshold": (
+        "Sets the minimum lightness for Threshold mode, or the minimum brightness change that "
+        "counts as an edge in Edges and File Edges modes."
+    ),
+    "upper_threshold": (
+        "Sets the maximum lightness included in Threshold mode. Brighter pixels are left outside "
+        "sorting intervals."
+    ),
+    "characteristic_length": (
+        "Sets the typical interval length in pixels for Random and Waves modes. Larger values "
+        "usually produce longer streaks."
+    ),
+    "angle": (
+        "Sets the direction of sorting in degrees. Zero sorts horizontally; 90 degrees produces "
+        "vertical sorting."
+    ),
+    "randomness": (
+        "Sets the percentage of intervals that are skipped. Zero sorts every interval; higher "
+        "values preserve more of the original image."
+    ),
+    "seed": (
+        "Controls repeatable random choices. The same image, settings, and seed produce the same "
+        "random pattern."
+    ),
+    "mask_image": (
+        "Optionally limits where pixels can move. White areas of the mask can be sorted, while "
+        "black areas remain unchanged."
+    ),
+    "interval_image": (
+        "Provides black-and-white interval information for File and File Edges modes. It must "
+        "have the same dimensions as the source image."
+    ),
+    "jpeg_quality": (
+        "Sets JPEG compression quality. Higher values retain more detail but create larger files."
+    ),
+    "jpeg_background": (
+        "Sets the color placed behind transparent pixels when exporting to JPEG, which does not "
+        "support transparency."
+    ),
+    "output_suffix": (
+        "Sets the text added to an exported filename before its extension, such as _pxsorted."
+    ),
+    "batch_output_mode": (
+        "Controls batch file types. PNG always writes PNG files; Preserve keeps PNG sources as "
+        "PNG and JPEG sources as JPEG."
+    ),
+}
+
+INTERVAL_HELP = (
+    (
+        "Threshold",
+        "Sorts connected runs of pixels whose lightness falls between the lower and upper "
+        "thresholds.",
+    ),
+    (
+        "Edges",
+        "Uses strong lightness changes between neighboring pixels as the boundaries of each "
+        "sorting interval.",
+    ),
+    (
+        "Random",
+        "Divides each row into randomly sized intervals. Characteristic length controls their "
+        "typical maximum size.",
+    ),
+    (
+        "Waves",
+        "Divides each row into nearly even intervals with small random changes in length, creating "
+        "a repeating wave-like pattern.",
+    ),
+    (
+        "File",
+        "Uses white runs in the selected black-and-white interval image as sorting intervals. The "
+        "image must match the source dimensions.",
+    ),
+    (
+        "File Edges",
+        "Uses changes in the selected interval image as interval boundaries instead of detecting "
+        "edges in the source image.",
+    ),
+    ("None", "Treats each complete row as one interval, stopping only at the image borders."),
+)
+
+SORTING_HELP = (
+    ("Lightness", "Orders pixels from dark to light using their HSL lightness."),
+    ("Hue", "Orders pixels by their position around the color wheel."),
+    ("Saturation", "Orders pixels from muted or gray colors to stronger, more vivid colors."),
+    ("Intensity", "Orders pixels by the average brightness of their red, green, and blue values."),
+    ("Minimum", "Orders pixels by whichever of their red, green, or blue values is lowest."),
+)
+
 
 if Adw is not None:
 
@@ -108,8 +206,14 @@ if Adw is not None:
             self.undo_button.connect("clicked", lambda _button: self._undo())
             self.redo_button = Gtk.Button(label="Redo")
             self.redo_button.connect("clicked", lambda _button: self._redo())
+            self.help_button = Gtk.Button(label="Help")
+            self.help_button.connect("clicked", lambda _button: self._show_help())
+            self.about_button = Gtk.Button(label="About")
+            self.about_button.set_action_name("app.about")
             header.pack_start(self.undo_button)
             header.pack_start(self.redo_button)
+            header.pack_start(self.help_button)
+            header.pack_start(self.about_button)
 
             self.render_button = Gtk.Button(label="Render Preview")
             self.render_button.add_css_class("suggested-action")
@@ -152,7 +256,6 @@ if Adw is not None:
             menu.append("Save Preset", "win.save-preset")
             menu.append("Reset Settings", "win.reset-settings")
             menu.append("New Variation", "win.new-variation")
-            menu.append("About", "app.about")
             for name, callback in (
                 ("load-preset", self._load_preset),
                 ("save-preset", self._save_preset),
@@ -174,7 +277,7 @@ if Adw is not None:
             self.preview_stack.set_hexpand(True)
             self.preview_stack.set_vexpand(True)
             self.preview_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
-            empty = Gtk.Label(label="Open a PNG or JPEG image", xalign=0.5, yalign=0.5)
+            empty = Gtk.Label(label="Open an image to begin", xalign=0.5, yalign=0.5)
             self.preview_stack.add_named(empty, "empty")
             self.original_picture = Gtk.Picture()
             self.original_picture.set_content_fit(Gtk.ContentFit.CONTAIN)
@@ -211,14 +314,30 @@ if Adw is not None:
             controls.set_margin_end(12)
             scroller.set_child(controls)
 
+            self.controls_stack = Adw.ViewStack()
+            self.controls_stack.set_hexpand(True)
+            controls_switcher = Adw.ViewSwitcher()
+            controls_switcher.set_stack(self.controls_stack)
+            controls_switcher.set_hexpand(True)
+            controls.append(controls_switcher)
+            controls.append(self.controls_stack)
+
+            processing_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+            export_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+            self.controls_stack.add_titled(processing_page, "processing", "Processing")
+            self.controls_stack.add_titled(export_page, "export", "Export")
+            self.controls_stack.set_visible_child_name("processing")
+
             processing = Adw.PreferencesGroup(title="Processing")
-            controls.append(processing)
+            processing_page.append(processing)
             self.interval_row = self._combo_row(
                 "Interval function", list(IntervalFunction), self._interval_changed
             )
             self.sorting_row = self._combo_row(
                 "Sorting function", list(SortingFunction), self._sorting_changed
             )
+            self._add_info_popover(self.interval_row, SETTING_HELP["interval_function"])
+            self._add_info_popover(self.sorting_row, SETTING_HELP["sorting_function"])
             processing.add(self.interval_row)
             processing.add(self.sorting_row)
             self.lower_row = self._spin_row("Lower threshold", 0.0, 1.0, 0.01, 2)
@@ -227,26 +346,29 @@ if Adw is not None:
             self.angle_row = self._spin_row("Angle", -360, 360, 1, 2)
             self.randomness_row = self._spin_row("Randomness", 0, 100, 1, 1)
             self.seed_row = self._spin_row("Seed", 0, 2**31 - 1, 1, 0)
-            for row in (
-                self.lower_row,
-                self.upper_row,
-                self.length_row,
-                self.angle_row,
-                self.randomness_row,
-                self.seed_row,
+            for row, help_key in (
+                (self.lower_row, "lower_threshold"),
+                (self.upper_row, "upper_threshold"),
+                (self.length_row, "characteristic_length"),
+                (self.angle_row, "angle"),
+                (self.randomness_row, "randomness"),
+                (self.seed_row, "seed"),
             ):
+                self._add_info_popover(row, SETTING_HELP[help_key])
                 processing.add(row)
                 row.connect("notify::value", self._numeric_changed)
 
             auxiliary = Adw.PreferencesGroup(title="Auxiliary Images")
-            controls.append(auxiliary)
+            processing_page.append(auxiliary)
             self.mask_row = self._file_row("Mask image", self._choose_mask)
             self.interval_image_row = self._file_row("Interval image", self._choose_interval_image)
+            self._add_info_popover(self.mask_row, SETTING_HELP["mask_image"])
+            self._add_info_popover(self.interval_image_row, SETTING_HELP["interval_image"])
             auxiliary.add(self.mask_row)
             auxiliary.add(self.interval_image_row)
 
             export_group = Adw.PreferencesGroup(title="Export")
-            controls.append(export_group)
+            export_page.append(export_group)
             self.jpeg_quality_row = self._spin_row("JPEG quality", 1, 100, 1, 0)
             self.jpeg_quality_row.set_value(95)
             self.jpeg_quality_row.connect("notify::value", self._jpeg_quality_changed)
@@ -256,6 +378,9 @@ if Adw is not None:
             self.suffix_row = Adw.EntryRow(title="Default output suffix")
             self.suffix_row.set_text("_pxsorted")
             self.suffix_row.connect("notify::text", self._suffix_changed)
+            self._add_info_popover(self.jpeg_quality_row, SETTING_HELP["jpeg_quality"])
+            self._add_info_popover(self.jpeg_background_row, SETTING_HELP["jpeg_background"])
+            self._add_info_popover(self.suffix_row, SETTING_HELP["output_suffix"])
             export_group.add(self.jpeg_quality_row)
             export_group.add(self.jpeg_background_row)
             export_group.add(self.suffix_row)
@@ -263,7 +388,8 @@ if Adw is not None:
             self.batch_output_mode_row = self._combo_row(
                 "Batch output mode", list(OutputMode), self._batch_output_mode_changed
             )
-            controls.append(self.batch_output_mode_row)
+            self._add_info_popover(self.batch_output_mode_row, SETTING_HELP["batch_output_mode"])
+            export_page.append(self.batch_output_mode_row)
 
             batch_group, self.batch_list, self.batch_toggle = build_batch_view(
                 Gtk,
@@ -278,7 +404,7 @@ if Adw is not None:
                     "cancel": self._cancel_batch,
                 },
             )
-            controls.append(batch_group)
+            export_page.append(batch_group)
             return scroller
 
         def _combo_row(self, title, values, callback):
@@ -305,6 +431,83 @@ if Adw is not None:
             row.add_suffix(button)
             row._chromasunder_button = button
             return row
+
+        def _add_info_popover(self, row, text) -> None:
+            button = Gtk.MenuButton(icon_name="dialog-information-symbolic")
+            button.set_valign(Gtk.Align.CENTER)
+            button.add_css_class("flat")
+
+            label = Gtk.Label(label=text, wrap=True, xalign=0)
+            label.set_max_width_chars(38)
+            label.set_margin_top(12)
+            label.set_margin_bottom(12)
+            label.set_margin_start(12)
+            label.set_margin_end(12)
+
+            popover = Gtk.Popover()
+            popover.set_child(label)
+            button.set_popover(popover)
+            row.add_suffix(button)
+
+        def _show_help(self) -> None:
+            dialog = Adw.Window(title="Pixel Sorting Help", transient_for=self, modal=True)
+            dialog.set_destroy_with_parent(True)
+            width = max(420, int(self.get_width() * 0.82))
+            height = max(440, int(self.get_height() * 0.82))
+            dialog.set_default_size(width, height)
+
+            toolbar = Adw.ToolbarView()
+            header = Adw.HeaderBar()
+            close_button = Gtk.Button(label="Close")
+            close_button.connect("clicked", lambda _button: dialog.close())
+            header.pack_end(close_button)
+            toolbar.add_top_bar(header)
+
+            scroller = Gtk.ScrolledWindow()
+            scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+            content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+            content.set_margin_top(18)
+            content.set_margin_bottom(24)
+            content.set_margin_start(24)
+            content.set_margin_end(24)
+
+            introduction = Gtk.Label(
+                label=(
+                    "Pixel sorting divides image rows into intervals, then rearranges the pixels "
+                    "inside each interval according to a selected color property. Interval modes "
+                    "control where sorting can happen; sorting modes control the resulting order."
+                ),
+                wrap=True,
+                xalign=0,
+            )
+            introduction.add_css_class("title-4")
+            content.append(introduction)
+            content.append(
+                self._help_group(
+                    "Interval Functions",
+                    "Choose how the boundaries of sortable sections are found.",
+                    INTERVAL_HELP,
+                )
+            )
+            content.append(
+                self._help_group(
+                    "Sorting Functions",
+                    "Choose the color property used to order pixels within each interval.",
+                    SORTING_HELP,
+                )
+            )
+
+            scroller.set_child(content)
+            toolbar.set_content(scroller)
+            dialog.set_content(toolbar)
+            dialog.present()
+
+        def _help_group(self, title, description, entries):
+            group = Adw.PreferencesGroup(title=title, description=description)
+            for entry_title, entry_description in entries:
+                row = Adw.ActionRow(title=entry_title, subtitle=entry_description)
+                group.add(row)
+            return group
 
         def _on_settings_changed(self) -> None:
             if not hasattr(self, "interval_row"):

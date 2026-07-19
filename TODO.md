@@ -2,14 +2,15 @@
 
 This is a to-do list of things I would like to implement to make this app nicer.
 
-## V1.1
+## V1.1 - The Simple Update
 
 - [x] I want the settings to be half the width they currently are
-- [ ] I want the Export and Batch Queue to have it's own separate menu.
-- [ ] Info bubbles for each parameter
+- [x] I want the Export and Batch Queue to have it's own separate menu.
+- [x] Info bubbles for each parameter
 - [x] Make the flatpak name of the app have a space in it
+- [x] Add About page
 
-## V1.2
+## V1.2 - The Useful Update
 
 - [ ] Built-in presets
   Mostly involves shipping a small set of read-only `.csunder` files and exposing them in the preset menu.
@@ -24,7 +25,9 @@ This is a to-do list of things I would like to implement to make this app nicer.
 
 - [ ] Give the seed setting a random button
 
-## V1.2
+- [ ] Make settings have a slider where applicable
+
+## V1.2 - The Makeover
 
 - [ ] Alternative color themes
   Supporting a few controlled themes is straightforward, but requires testing contrast, widget states, icons, dialogs, and accessibility across each theme.
@@ -34,7 +37,9 @@ This is a to-do list of things I would like to implement to make this app nicer.
 
 - [ ] Custom handmade logo/icon
 
-## V1.3
+- [ ] Add icons to Processing and Export buttons
+
+## V1.3 - The Mathematical Update
 
 - [ ] TIFF support
   Basic single-frame TIFF support is easy through Pillow. The difficulty comes from deciding how to handle color modes, high bit depth, alpha, compression types, multipage files, and large memory usage.
@@ -42,7 +47,7 @@ This is a to-do list of things I would like to implement to make this app nicer.
 - [ ] Additional sorting algorithms
   Simple pixel-value sorting methods are easy to add. Each new algorithm still requires UI integration, preset compatibility, validation, documentation, and golden-image tests.
 
-## V1.4
+## V1.4 - The Speed Update
 
 - [ ] Live preview while adjusting settings
   Requires debounce logic, preview-resolution scaling, job cancellation, stale-result prevention, and careful coordination between rapid UI changes and worker processes.
