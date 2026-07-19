@@ -34,3 +34,27 @@ class PresetTests(unittest.TestCase):
             with self.assertRaises(PresetError) as context:
                 load_preset(path)
             self.assertEqual(context.exception.category, "unsupported-preset-schema")
+
+    def test_bad_types_and_unknown_fields_are_rejected(self):
+        settings = PixelSortSettings(seed=123).to_dict()
+        cases = (
+            {**settings, "seed": "123"},
+            {**settings, "characteristic_length": 2.5},
+            {**settings, "randomness": True},
+            {**settings, "unexpected": 1},
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "bad.csunder"
+            for values in cases:
+                with self.subTest(values=values):
+                    path.write_text(
+                        json.dumps(
+                            {
+                                "format": "chromasunder-preset",
+                                "schema_version": 1,
+                                "settings": values,
+                            }
+                        )
+                    )
+                    with self.assertRaises(PresetError):
+                        load_preset(path)

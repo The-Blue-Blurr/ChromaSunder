@@ -26,8 +26,7 @@ def show_stale_export_dialog(Adw, parent, on_choice: Callable[[str], None]) -> N
     dialog.add_response("existing", "Export Existing Render")
     dialog.add_response("render", "Render Current Settings and Export")
     dialog.set_response_appearance("render", Adw.ResponseAppearance.SUGGESTED)
-    dialog.choose(None, lambda _dialog, result: on_choice(dialog.choose_finish(result)))
-    dialog.present(parent)
+    dialog.choose(parent, None, lambda _dialog, result: on_choice(dialog.choose_finish(result)))
 
 
 def show_no_render_dialog(Adw, parent, on_choice: Callable[[str], None]) -> None:
@@ -37,8 +36,7 @@ def show_no_render_dialog(Adw, parent, on_choice: Callable[[str], None]) -> None
     dialog.add_response("cancel", "Cancel")
     dialog.add_response("render", "Render and Export")
     dialog.set_response_appearance("render", Adw.ResponseAppearance.SUGGESTED)
-    dialog.choose(None, lambda _dialog, result: on_choice(dialog.choose_finish(result)))
-    dialog.present(parent)
+    dialog.choose(parent, None, lambda _dialog, result: on_choice(dialog.choose_finish(result)))
 
 
 def show_conflict_dialog(Adw, parent, on_choice: Callable[[str], None]) -> None:
@@ -55,5 +53,25 @@ def show_conflict_dialog(Adw, parent, on_choice: Callable[[str], None]) -> None:
     ):
         dialog.add_response(identifier, label)
     dialog.set_response_appearance("overwrite", Adw.ResponseAppearance.DESTRUCTIVE)
-    dialog.choose(None, lambda _dialog, result: on_choice(dialog.choose_finish(result)))
-    dialog.present(parent)
+    dialog.choose(parent, None, lambda _dialog, result: on_choice(dialog.choose_finish(result)))
+
+
+def show_suffix_dialog(
+    Adw, Gtk, parent, current: str, on_choice: Callable[[str | None], None]
+) -> None:
+    dialog = Adw.AlertDialog.new(
+        "Use a different filename suffix", "Enter the suffix applied before each file extension."
+    )
+    entry = Gtk.Entry(text=current)
+    entry.set_activates_default(True)
+    dialog.set_extra_child(entry)
+    dialog.add_response("cancel", "Cancel")
+    dialog.add_response("apply", "Apply Suffix")
+    dialog.set_default_response("apply")
+    dialog.set_response_appearance("apply", Adw.ResponseAppearance.SUGGESTED)
+
+    def finish(_dialog, result) -> None:
+        response = dialog.choose_finish(result)
+        on_choice(entry.get_text().strip() if response == "apply" else None)
+
+    dialog.choose(parent, None, finish)

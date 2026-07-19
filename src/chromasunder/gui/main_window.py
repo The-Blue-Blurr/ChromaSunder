@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover - exercised only on non-GTK development 
     Adw = Gdk = Gio = GLib = Gtk = None
 
 from chromasunder.core.enums import IntervalFunction, SortingFunction
-from chromasunder.core.exporting import save_jpeg, save_png, suggest_output_path
+from chromasunder.core.exporting import suggest_output_path
 from chromasunder.core.imaging import normalize_image
 from chromasunder.core.presets import PresetError, load_preset, save_preset
 from chromasunder.core.validation import ValidationError
@@ -29,7 +29,6 @@ from chromasunder.gui.batch.model import (
     BatchStatus,
     ConflictPolicy,
     OutputMode,
-    assign_proposed_outputs,
     numeric_suffix_path,
     preflight_outputs,
 )
@@ -39,6 +38,7 @@ from chromasunder.gui.dialogs import (
     show_error,
     show_no_render_dialog,
     show_stale_export_dialog,
+    show_suffix_dialog,
 )
 from chromasunder.gui.editor_controller import EditorController
 from chromasunder.gui.persistence import SettingsStore
@@ -62,6 +62,7 @@ if Adw is not None:
             self.batch_output_folder: str | None = None
             self._render_snapshot = None
             self._pending_export: Path | None = None
+            self._worker_operation = "render"
             self._render_timeout = None
             self._batch_timeout = None
             self._build_ui()
@@ -79,7 +80,7 @@ if Adw is not None:
                 "export": (self._choose_export_destination, ["<Primary>e"]),
                 "undo-settings": (self._undo, ["<Primary>z"]),
                 "redo-settings": (self._redo, ["<Primary><Shift>z"]),
-                "cancel": (self._cancel_render, ["<Escape>"]),
+                "cancel": (self._cancel_render, ["Escape"]),
             }
             for name, (callback, accelerators) in actions.items():
                 action = Gio.SimpleAction.new(name, None)
@@ -96,12 +97,12 @@ if Adw is not None:
             toolbar.set_content(content)
             self.set_content(toolbar)
 
-            open_button = Gtk.Button(label="Open")
-            open_button.connect("clicked", lambda _button: self._open_image())
-            header.pack_start(open_button)
-            presets_button = Gtk.MenuButton(label="Presets")
-            presets_button.set_menu_model(self._preset_menu())
-            header.pack_start(presets_button)
+            self.open_button = Gtk.Button(label="Open")
+            self.open_button.connect("clicked", lambda _button: self._open_image())
+            header.pack_start(self.open_button)
+            self.presets_button = Gtk.MenuButton(label="Presets")
+            self.presets_button.set_menu_model(self._preset_menu())
+            header.pack_start(self.presets_button)
 
             self.undo_button = Gtk.Button(label="Undo")
             self.undo_button.connect("clicked", lambda _button: self._undo())
@@ -125,7 +126,8 @@ if Adw is not None:
             content.append(self.stale_banner)
             content.append(paned)
             paned.set_start_child(self._build_preview_panel())
-            paned.set_end_child(self._build_controls_panel())
+            self.controls_panel = self._build_controls_panel()
+            paned.set_end_child(self.controls_panel)
 
             self.status_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
             self.status_box.set_margin_top(8)
@@ -247,8 +249,10 @@ if Adw is not None:
             self.jpeg_quality_row.connect("notify::value", self._jpeg_quality_changed)
             self.jpeg_background_row = Adw.EntryRow(title="JPEG background")
             self.jpeg_background_row.set_text("black")
+            self.jpeg_background_row.connect("notify::text", self._jpeg_background_changed)
             self.suffix_row = Adw.EntryRow(title="Default output suffix")
             self.suffix_row.set_text("_pxsorted")
+            self.suffix_row.connect("notify::text", self._suffix_changed)
             export_group.add(self.jpeg_quality_row)
             export_group.add(self.jpeg_background_row)
             export_group.add(self.suffix_row)
@@ -285,8 +289,8 @@ if Adw is not None:
             adjustment = Gtk.Adjustment(
                 value=lower, lower=lower, upper=upper, step_increment=step, page_increment=step * 10
             )
-            row = Adw.SpinRow.new(adjustment, title)
-            row.set_digits(digits)
+            row = Adw.SpinRow.new(adjustment, step, digits)
+            row.set_title(title)
             row._chromasunder_syncing = False
             return row
 
@@ -324,6 +328,7 @@ if Adw is not None:
             self.undo_button.set_sensitive(self.editor.settings_controller.history.can_undo)
             self.redo_button.set_sensitive(self.editor.settings_controller.history.can_redo)
             self._set_stale_banner()
+            self._persist("last-processing-settings", settings.to_dict())
 
         def _interval_changed(self, row, _pspec) -> None:
             values = list(IntervalFunction)
@@ -445,9 +450,9 @@ if Adw is not None:
                 }
                 self._render_snapshot = snapshot
                 self._pending_export = export_after
+                self._worker_operation = "render"
                 self.worker.start(request)
-                self.render_button.set_sensitive(False)
-                self.export_button.set_sensitive(False)
+                self._set_busy(True)
                 self.progress.set_visible(True)
                 self.progress.pulse()
                 self.cancel_button.set_visible(True)
@@ -463,6 +468,12 @@ if Adw is not None:
                 kind = message.get("kind")
                 payload = message.get("payload", {})
                 if kind == "complete":
+                    self.worker.finish()
+                    if self._worker_operation == "export":
+                        destination = Path(payload["output_path"])
+                        self._pending_export = None
+                        self._finish_render_ui(f"Exported {destination.name}")
+                        return False
                     self.editor.mark_rendered(
                         self._render_snapshot,
                         payload["cache_path"],
@@ -478,11 +489,13 @@ if Adw is not None:
                         self._export_render(export_after)
                     return False
                 if kind == "error":
-                    self._finish_render_ui("Render failed")
+                    operation = "Export" if self._worker_operation == "export" else "Render"
+                    self._pending_export = None
+                    self._finish_render_ui(f"{operation} failed")
                     show_error(
                         Adw,
                         self,
-                        "Render failed",
+                        f"{operation} failed",
                         payload.get("message", "The worker failed."),
                         payload.get("details"),
                     )
@@ -492,15 +505,21 @@ if Adw is not None:
                     return False
             process = self.worker.process
             if process is not None and not process.is_alive():
-                self._finish_render_ui("Render worker exited unexpectedly")
-                show_error(Adw, self, "Render failed", "The render worker exited unexpectedly.")
+                operation = "Export" if self._worker_operation == "export" else "Render"
+                self._pending_export = None
+                self._finish_render_ui(f"{operation} worker exited unexpectedly")
+                show_error(
+                    Adw,
+                    self,
+                    f"{operation} failed",
+                    f"The {operation.lower()} worker exited unexpectedly.",
+                )
                 return False
             return True
 
         def _finish_render_ui(self, message: str) -> None:
             self.worker.close()
-            self.render_button.set_sensitive(True)
-            self.export_button.set_sensitive(True)
+            self._set_busy(False)
             self.progress.set_visible(False)
             self.cancel_button.set_visible(False)
             self.status_label.set_text(message)
@@ -509,7 +528,46 @@ if Adw is not None:
         def _cancel_render(self) -> None:
             if self.worker.active:
                 self.worker.cancel()
-                self._finish_render_ui("Render cancelled")
+                operation = "Export" if self._worker_operation == "export" else "Render"
+                self._pending_export = None
+                self._finish_render_ui(f"{operation} cancelled")
+            elif self.batch_runner.active:
+                self._cancel_batch()
+
+        def _set_busy(self, busy: bool) -> None:
+            for widget in (
+                self.open_button,
+                self.presets_button,
+                self.render_button,
+                self.export_button,
+                self.controls_panel,
+            ):
+                widget.set_sensitive(not busy)
+            self.undo_button.set_sensitive(
+                not busy and self.editor.settings_controller.history.can_undo
+            )
+            self.redo_button.set_sensitive(
+                not busy and self.editor.settings_controller.history.can_redo
+            )
+            for name in (
+                "open",
+                "render",
+                "export",
+                "undo-settings",
+                "redo-settings",
+                "load-preset",
+                "save-preset",
+                "reset-settings",
+                "new-variation",
+            ):
+                action = self.lookup_action(name)
+                if action is not None:
+                    enabled = not busy
+                    if name == "undo-settings":
+                        enabled = enabled and self.editor.settings_controller.history.can_undo
+                    elif name == "redo-settings":
+                        enabled = enabled and self.editor.settings_controller.history.can_redo
+                    action.set_enabled(enabled)
 
         def _set_stale_banner(self) -> None:
             if not self.editor.has_render:
@@ -530,16 +588,33 @@ if Adw is not None:
         def _jpeg_quality_changed(self, row, _pspec) -> None:
             if not getattr(row, "_chromasunder_syncing", False):
                 self.jpeg_quality = int(row.get_value())
+                self._persist("jpeg-quality", self.jpeg_quality)
+
+        def _jpeg_background_changed(self, row, _pspec) -> None:
+            self._persist("jpeg-background", row.get_text() or "black")
+
+        def _suffix_changed(self, row, _pspec) -> None:
+            self._persist("default-output-suffix", row.get_text() or "_pxsorted")
 
         def _batch_output_mode_changed(self, _row, _pspec) -> None:
-            return
+            if hasattr(self, "batch_output_mode_row"):
+                self._persist(
+                    "last-output-mode",
+                    str(list(OutputMode)[self.batch_output_mode_row.get_selected()]),
+                )
 
         def _choose_export_destination(self) -> None:
             if not self.editor.has_source:
                 show_error(Adw, self, "Nothing to export", "Open an image first.")
                 return
-            default = suggest_output_path(self.editor.state.source_path, output_format="PNG")
-            self._save_dialog("Export Image", default.name, self._finish_export_destination)
+            default = suggest_output_path(
+                self.editor.state.source_path,
+                suffix=self.suffix_row.get_text() or "_pxsorted",
+                output_format="PNG",
+            )
+            self._save_dialog(
+                "Export Image", default.name, self._finish_export_destination, export_filter=True
+            )
 
         def _finish_export_destination(self, dialog, result) -> None:
             try:
@@ -572,23 +647,37 @@ if Adw is not None:
         def _export_render(self, destination: Path) -> None:
             if not self.editor.state.cache_path:
                 return
+            extension = destination.suffix.lower()
+            if extension not in {".png", ".jpg", ".jpeg"}:
+                show_error(
+                    Adw,
+                    self,
+                    "Export failed",
+                    "Choose a PNG (.png) or JPEG (.jpg or .jpeg) destination.",
+                )
+                self._pending_export = None
+                return
             try:
-                with __import__("PIL.Image", fromlist=["Image"]).open(
-                    self.editor.state.cache_path
-                ) as image:
-                    if destination.suffix.lower() in {".jpg", ".jpeg"}:
-                        save_jpeg(
-                            image,
-                            destination,
-                            quality=getattr(self, "jpeg_quality", 95),
-                            background=self.jpeg_background_row.get_text() or "black",
-                        )
-                    else:
-                        save_png(image, destination)
-                self.status_label.set_text(f"Exported {destination.name}")
-            except (OSError, ValidationError) as exc:
+                self._pending_export = destination
+                self._worker_operation = "export"
+                self.worker.start(
+                    {
+                        "operation": "export",
+                        "cache_path": self.editor.state.cache_path,
+                        "output_path": str(destination),
+                        "output_format": "JPEG" if extension in {".jpg", ".jpeg"} else "PNG",
+                        "jpeg_quality": getattr(self, "jpeg_quality", 95),
+                        "jpeg_background": self.jpeg_background_row.get_text() or "black",
+                    }
+                )
+                self._set_busy(True)
+                self.progress.set_visible(True)
+                self.progress.pulse()
+                self.cancel_button.set_visible(True)
+                self.status_label.set_text("Exporting full-resolution image...")
+                self._render_timeout = GLib.timeout_add(50, self._poll_render)
+            except (OSError, ValidationError, RuntimeError) as exc:
                 show_error(Adw, self, "Export failed", str(exc))
-            finally:
                 self._pending_export = None
 
         def _undo(self) -> None:
@@ -660,9 +749,19 @@ if Adw is not None:
                 self.batch_list.remove(child)
             for item in self.batch_items:
                 row = Gtk.ListBoxRow()
-                row.set_child(
-                    Gtk.Label(label=f"{Path(item.source_path).name}  |  {item.status}", xalign=0)
+                dimensions = (
+                    f"{item.dimensions[0]}x{item.dimensions[1]}"
+                    if item.dimensions
+                    else "unknown size"
                 )
+                output = Path(item.proposed_output).name if item.proposed_output else "not assigned"
+                details = (
+                    f"{Path(item.source_path).name} | {dimensions} | "
+                    f"{item.source_format or 'unknown'} | {output} | {item.status}"
+                )
+                if item.message:
+                    details = f"{details} | {item.message}"
+                row.set_child(Gtk.Label(label=details, xalign=0, wrap=True))
                 self.batch_list.append(row)
             self.batch_toggle.set_label(f"Batch Queue ({len(self.batch_items)} files)")
 
@@ -718,9 +817,12 @@ if Adw is not None:
             if choice == "cancel":
                 return
             if choice == "skip":
+                seen = set()
                 for item in self.batch_items:
-                    if item.proposed_output and Path(item.proposed_output).exists():
+                    output = Path(item.proposed_output or "")
+                    if output.exists() or output in seen:
                         item.status = BatchStatus.SKIPPED
+                    seen.add(output)
                 snapshot = replace(snapshot, conflict_policy=ConflictPolicy.SKIP)
             elif choice == "numeric":
                 used = set()
@@ -733,18 +835,33 @@ if Adw is not None:
             elif choice == "overwrite":
                 snapshot = replace(snapshot, conflict_policy=ConflictPolicy.OVERWRITE)
             elif choice == "suffix":
-                suffix = self.suffix_row.get_text().strip() or "_pxsorted"
-                if suffix == snapshot.suffix:
-                    suffix = f"{suffix}_batch"
-                snapshot = replace(snapshot, suffix=suffix)
-                assign_proposed_outputs(self.batch_items, snapshot)
+                show_suffix_dialog(
+                    Adw,
+                    Gtk,
+                    self,
+                    snapshot.suffix,
+                    lambda suffix: self._apply_custom_suffix(suffix, snapshot),
+                )
+                return
+            self._run_batch(snapshot)
+
+        def _apply_custom_suffix(self, suffix: str | None, snapshot: BatchSnapshot) -> None:
+            if not suffix:
+                return
+            snapshot = replace(snapshot, suffix=suffix)
+            conflicts = preflight_outputs(self.batch_items, snapshot)
+            if conflicts.has_conflicts:
+                show_conflict_dialog(
+                    Adw, self, lambda choice: self._apply_conflict_choice(choice, snapshot)
+                )
+                return
+            self.suffix_row.set_text(suffix)
             self._run_batch(snapshot)
 
         def _run_batch(self, snapshot: BatchSnapshot) -> None:
             try:
                 self.batch_runner.start(self.batch_items, snapshot, callback=self._batch_event)
-                self.render_button.set_sensitive(False)
-                self.export_button.set_sensitive(False)
+                self._set_busy(True)
                 self.cancel_button.set_visible(True)
                 self.status_label.set_text("Starting batch...")
                 self._batch_timeout = GLib.timeout_add(50, self._poll_batch)
@@ -758,9 +875,18 @@ if Adw is not None:
         def _batch_event(self, event: str, item: BatchItem | None, payload) -> None:
             self._refresh_batch_list()
             if event == "progress":
-                self.status_label.set_text(f"Processing {Path(item.source_path).name}...")
+                item_number = self.batch_runner.current_index + 1
+                item_total = len(self.batch_items)
+                row_fraction = payload.get("done", 0) / max(1, payload.get("total", 1))
+                overall = ((item_number - 1) + row_fraction) / max(1, item_total)
+                summary = self.batch_runner.summary
+                self.status_label.set_text(
+                    f"Processing {item_number} of {item_total}: {Path(item.source_path).name} | "
+                    f"{summary.completed} completed, {summary.skipped} skipped, "
+                    f"{summary.failed} failed"
+                )
                 self.progress.set_visible(True)
-                self.progress.pulse()
+                self.progress.set_fraction(overall)
             elif event == "finished":
                 summary = payload.get("summary")
                 self.status_label.set_text(
@@ -769,8 +895,7 @@ if Adw is not None:
                 )
                 self.progress.set_visible(False)
                 self.cancel_button.set_visible(False)
-                self.render_button.set_sensitive(True)
-                self.export_button.set_sensitive(True)
+                self._set_busy(False)
 
         def _cancel_batch(self) -> None:
             self.batch_runner.cancel()
@@ -791,14 +916,28 @@ if Adw is not None:
                 preset_filter_obj.add_pattern("*.csunder")
                 filters.append(preset_filter_obj)
             if filters.get_n_items():
+                dialog.set_filters(filters)
                 dialog.set_default_filter(filters.get_item(0))
             if multiple:
                 dialog.open_multiple(self, None, callback)
             else:
                 dialog.open(self, None, callback)
 
-        def _save_dialog(self, title, initial_name, callback) -> None:
+        def _save_dialog(self, title, initial_name, callback, *, export_filter=False) -> None:
             dialog = Gtk.FileDialog(title=title, initial_name=initial_name)
+            if export_filter:
+                filters = Gio.ListStore.new(Gtk.FileFilter)
+                png_filter = Gtk.FileFilter(name="PNG image")
+                png_filter.add_mime_type("image/png")
+                png_filter.add_pattern("*.png")
+                jpeg_filter = Gtk.FileFilter(name="JPEG image")
+                jpeg_filter.add_mime_type("image/jpeg")
+                jpeg_filter.add_pattern("*.jpg")
+                jpeg_filter.add_pattern("*.jpeg")
+                filters.append(png_filter)
+                filters.append(jpeg_filter)
+                dialog.set_filters(filters)
+                dialog.set_default_filter(png_filter)
             dialog.save(self, None, callback)
 
         def _folder_dialog(self, title, callback) -> None:
@@ -811,9 +950,7 @@ if Adw is not None:
                 if values:
                     from chromasunder.core.models import PixelSortSettings
 
-                    self.editor.settings_controller.apply_preset(
-                        PixelSortSettings.from_dict(values)
-                    )
+                    self.editor.settings_controller.restore(PixelSortSettings.from_dict(values))
                 self.jpeg_quality = int(self.store.get("jpeg-quality", 95))
                 self.jpeg_background_row.set_text(self.store.get("jpeg-background", "black"))
                 self.suffix_row.set_text(self.store.get("default-output-suffix", "_pxsorted"))
@@ -833,6 +970,12 @@ if Adw is not None:
             except Exception:
                 pass
             self._on_settings_changed()
+
+        def _persist(self, key: str, value) -> None:
+            try:
+                self.store.set(key, value)
+            except Exception:
+                pass
 
         def _on_close_request(self, *_args) -> bool:
             self.worker.cancel()

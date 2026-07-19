@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import logging
+import time
 import traceback
 from pathlib import Path
 from typing import Any
 
-from chromasunder.core.exporting import save_png
+from PIL import Image
+
+from chromasunder.core.exporting import save_jpeg, save_png
 from chromasunder.core.imaging import display_copy
 from chromasunder.core.models import PixelSortSettings
 from chromasunder.core.processing import RenderCancelled, render_file
@@ -20,11 +23,28 @@ def render_worker(request: dict[str, Any], messages) -> None:
     """Render one file and put small structured messages on a queue."""
 
     configure_logging()
+    started = time.monotonic()
 
     def send(kind: str, **payload: Any) -> None:
         messages.put({"kind": kind, "payload": payload})
 
     try:
+        if request.get("operation") == "export":
+            output_path = request["output_path"]
+            with Image.open(request["cache_path"]) as image:
+                if request.get("output_format") == "JPEG":
+                    save_jpeg(
+                        image,
+                        output_path,
+                        quality=int(request.get("jpeg_quality", 95)),
+                        background=request.get("jpeg_background", "black"),
+                    )
+                else:
+                    save_png(image, output_path)
+            send("complete", output_path=output_path)
+            LOGGER.info("Export completed in %.2fs", time.monotonic() - started)
+            return
+
         settings = PixelSortSettings.from_dict(request["settings"])
 
         def progress(done: int, total: int) -> None:
@@ -39,20 +59,47 @@ def render_worker(request: dict[str, Any], messages) -> None:
             progress=progress,
         )
         try:
-            cache_path = Path(request["cache_path"])
-            preview_path = Path(request["preview_path"])
-            save_png(image, cache_path)
-            preview = display_copy(image)
-            try:
-                save_png(preview, preview_path)
-            finally:
-                preview.close()
-            send(
-                "complete",
-                cache_path=str(cache_path),
-                preview_path=str(preview_path),
-                dimensions=list(image.size),
-            )
+            output_path = request.get("output_path")
+            if output_path:
+                if request.get("output_format") == "JPEG":
+                    save_jpeg(
+                        image,
+                        output_path,
+                        quality=int(request.get("jpeg_quality", 95)),
+                        background=request.get("jpeg_background", "black"),
+                    )
+                else:
+                    save_png(image, output_path)
+                send("complete", output_path=output_path, dimensions=list(image.size))
+                LOGGER.info(
+                    "Batch render completed: mode=%s size=%sx%s elapsed=%.2fs",
+                    settings.interval_function,
+                    image.width,
+                    image.height,
+                    time.monotonic() - started,
+                )
+            else:
+                cache_path = Path(request["cache_path"])
+                preview_path = Path(request["preview_path"])
+                save_png(image, cache_path)
+                preview = display_copy(image)
+                try:
+                    save_png(preview, preview_path)
+                finally:
+                    preview.close()
+                send(
+                    "complete",
+                    cache_path=str(cache_path),
+                    preview_path=str(preview_path),
+                    dimensions=list(image.size),
+                )
+                LOGGER.info(
+                    "Preview render completed: mode=%s size=%sx%s elapsed=%.2fs",
+                    settings.interval_function,
+                    image.width,
+                    image.height,
+                    time.monotonic() - started,
+                )
         finally:
             image.close()
     except RenderCancelled:

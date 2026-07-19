@@ -42,7 +42,9 @@ class EditorController:
         return bool(self.state.cache_path and Path(self.state.cache_path).is_file())
 
     def open_source(self, path: str) -> None:
-        self.state = EditorState(source_path=str(Path(path).expanduser().resolve()))
+        normalized = normalize_image(path)
+        normalized.image.close()
+        self.state = EditorState(source_path=normalized.path)
         self.settings_controller.history.clear()
         self.settings_controller.history.seed(self.settings)
 

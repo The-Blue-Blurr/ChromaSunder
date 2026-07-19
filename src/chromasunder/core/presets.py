@@ -72,6 +72,22 @@ def load_preset(path: str | Path) -> PixelSortSettings:
     }
     if not isinstance(values, dict) or not required.issubset(values):
         raise PresetError("The preset is missing required settings.", "invalid-preset")
+    if set(values) != required:
+        raise PresetError("The preset contains unknown settings.", "invalid-preset")
+    numeric_fields = {"lower_threshold", "upper_threshold", "angle", "randomness"}
+    if (
+        not isinstance(values["interval_function"], str)
+        or not isinstance(values["sorting_function"], str)
+        or any(
+            isinstance(values[name], bool) or not isinstance(values[name], (int, float))
+            for name in numeric_fields
+        )
+        or isinstance(values["characteristic_length"], bool)
+        or not isinstance(values["characteristic_length"], int)
+        or isinstance(values["seed"], bool)
+        or not isinstance(values["seed"], int)
+    ):
+        raise PresetError("The preset contains invalid setting types.", "invalid-preset")
     try:
         settings = PixelSortSettings.from_dict(values)
         validate_settings(settings)

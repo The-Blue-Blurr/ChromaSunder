@@ -58,7 +58,10 @@ def normalize_binary_image(path: str | Path, dimensions: tuple[int, int]) -> Ima
         )
     grayscale = normalized.image.convert("L")
     normalized.image.close()
-    return grayscale.point(lambda value: 255 if value >= 128 else 0, mode="L")
+    try:
+        return grayscale.point(lambda value: 255 if value >= 128 else 0, mode="1")
+    finally:
+        grayscale.close()
 
 
 def display_copy(image: Image.Image, max_size: tuple[int, int] = (1200, 900)) -> Image.Image:

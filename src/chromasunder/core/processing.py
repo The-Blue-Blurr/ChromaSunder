@@ -107,6 +107,12 @@ def process_image(
     validate_settings(settings)
     if source.mode != "RGBA":
         source = source.convert("RGBA")
+    if settings.interval_function in (IntervalFunction.FILE, IntervalFunction.FILE_EDGES):
+        if interval_image is None:
+            raise ValidationError(
+                "An interval image is required for the selected interval function.",
+                "missing-interval-image",
+            )
     original_size = source.size
     angle = settings.angle
     working_source = _rotate(source, angle)
@@ -115,16 +121,23 @@ def process_image(
         _rotate(interval_image, angle, binary=True) if interval_image is not None else None
     )
     if working_mask is not None and working_mask.size != working_source.size:
-        working_mask = working_mask.resize(working_source.size, Image.Resampling.NEAREST)
+        working_source.close()
+        working_mask.close()
+        if working_interval is not None:
+            working_interval.close()
+        raise ValidationError(
+            "Rotating the mask produced dimensions that do not match the source image.",
+            "dimension-mismatch",
+        )
     if working_interval is not None and working_interval.size != working_source.size:
-        working_interval = working_interval.resize(working_source.size, Image.Resampling.NEAREST)
-    if settings.interval_function in (IntervalFunction.FILE, IntervalFunction.FILE_EDGES):
-        if working_interval is None:
-            raise ValidationError(
-                "An interval image is required for the selected interval function.",
-                "missing-interval-image",
-            )
-
+        working_source.close()
+        if working_mask is not None:
+            working_mask.close()
+        working_interval.close()
+        raise ValidationError(
+            "Rotating the interval image produced dimensions that do not match the source image.",
+            "dimension-mismatch",
+        )
     generator = rng or random.Random(settings.seed)
     output = working_source.copy()
     source_pixels = working_source.load()

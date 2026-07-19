@@ -61,6 +61,15 @@ class SettingsController:
         for listener in self._listeners:
             listener(settings)
 
+    def restore(self, settings: PixelSortSettings) -> None:
+        """Set persisted startup state without creating an undo action."""
+        validate_settings(settings)
+        self.settings = settings
+        self.history.clear()
+        self.history.seed(settings)
+        for listener in self._listeners:
+            listener(settings)
+
     def undo(self) -> PixelSortSettings | None:
         result = self.history.undo()
         if result is not None:

@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+build/
+dist/
+
+# Flatpak build and repository artifacts
+.flatpak-builder/
+flatpak-build/
+repo/
+pages/
+*.flatpak
+*.flatpak.sha256
+*.flatpakref.tmp
+
+# Editor and platform files
+.idea/
+.vscode/
+*~
+.DS_Store

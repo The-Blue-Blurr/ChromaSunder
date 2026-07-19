@@ -151,7 +151,11 @@ def validate_batch_dimensions(items: Iterable[BatchItem], snapshot: BatchSnapsho
             item.dimensions = inspected.dimensions
             item.source_format = inspected.source_format
         dimensions.append(item.dimensions)
-    if snapshot.mask_path or snapshot.interval_path:
+    interval_is_active = snapshot.settings.interval_function in (
+        IntervalFunction.FILE,
+        IntervalFunction.FILE_EDGES,
+    )
+    if snapshot.mask_path or (interval_is_active and snapshot.interval_path):
         first = dimensions[0]
         if any(value != first for value in dimensions):
             raise ValidationError(
@@ -161,7 +165,7 @@ def validate_batch_dimensions(items: Iterable[BatchItem], snapshot: BatchSnapsho
         if snapshot.mask_path:
             mask = normalize_binary_image(snapshot.mask_path, first)
             mask.close()
-        if snapshot.interval_path:
+        if interval_is_active and snapshot.interval_path:
             interval = normalize_binary_image(snapshot.interval_path, first)
             interval.close()
     if (

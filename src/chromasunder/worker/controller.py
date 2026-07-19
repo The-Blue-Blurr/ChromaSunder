@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import queue
 import time
@@ -12,6 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from .render_worker import render_worker
+
+LOGGER = logging.getLogger(__name__)
 
 
 def cache_directory() -> Path:
@@ -65,6 +68,9 @@ class WorkerController:
         self._messages = self._context.Queue()
         self._process = self._context.Process(target=render_worker, args=(request, self._messages))
         self._process.start()
+        LOGGER.info(
+            "Started %s worker pid=%s", request.get("operation", "render"), self._process.pid
+        )
 
     def poll(self) -> list[dict[str, Any]]:
         if self._messages is None:
@@ -101,13 +107,29 @@ class WorkerController:
             if process.is_alive():
                 process.kill()
                 process.join(timeout=0.5)
+        LOGGER.info("Cancelled worker pid=%s exitcode=%s", process.pid, process.exitcode)
         request = self._request or {}
-        for key in ("cache_path", "preview_path"):
+        for key in ("cache_path", "preview_path", "output_path"):
             path = request.get(key)
             if path:
-                Path(path).unlink(missing_ok=True)
+                target = Path(path)
+                target.unlink(missing_ok=True)
+                for temporary in target.parent.glob(f".{target.name}.*.tmp"):
+                    temporary.unlink(missing_ok=True)
         if request.get("cache_path"):
             Path(request["cache_path"]).with_suffix(".active").unlink(missing_ok=True)
+        self.close()
+
+    def finish(self) -> None:
+        """Dispose of a worker that already reported successful completion."""
+        process = self._process
+        if process is not None and process.is_alive():
+            process.join(timeout=0.5)
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=0.5)
+        if process is not None:
+            LOGGER.info("Worker pid=%s completed with exitcode=%s", process.pid, process.exitcode)
         self.close()
 
     def close(self) -> None:

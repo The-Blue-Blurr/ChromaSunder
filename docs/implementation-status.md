@@ -7,7 +7,8 @@
 - Dependency-free core models, validation, normalization, HSL sorting keys,
   seven interval functions, deterministic seeded randomness, masks, interval
   images, angle rotation, cropping, and row-at-a-time processing.
-- Atomic PNG and JPEG export helpers with metadata stripping.
+- Atomic PNG and JPEG export helpers with metadata stripping and worker-based
+  full-resolution cache re-encoding.
 - Settings-only `.csunder` presets, settings-only history, render snapshots,
   persistence adapter, and stale-render state.
 - Spawned worker process with full-resolution cache, display preview, process
@@ -18,34 +19,41 @@
 - Sequential batch runner with shared settings, seed, mask, interval image,
   dimension validation, PNG and preserve-format modes, output conflict
   handling, failure continuation, cancellation, and summary counts.
-- Self-hosted Flatpak manifest, `.flatpakref`, GNOME runtime reference, CI
-  smoke-build workflow, and tag-based release scaffolding.
+- Self-hosted Flatpak manifest, `.flatpakref`, GNOME runtime reference, and
+  local packaging scripts.
+- Pull-request and main-branch CI for lint, formatting, tests, and an x86_64
+  Flatpak smoke build using the GNOME 50 runtime.
 
-## Verification completed
+## Latest local verification
 
 ```text
 Ruff lint:       passed
 Ruff formatting: passed
-Pytest:          18 passed, 12 subtests passed
+Pytest:          29 passed
 Compileall:      passed
 XML metadata:    parsed successfully
-Flatpak YAML:    parsed successfully
-Core boundary:   no GTK, PyGObject, libadwaita, or Flatpak imports
+YAML manifests:  parsed successfully
+GNOME 50 Flatpak: built, installed, and launched successfully
+GSettings:       sandboxed read/write passed
+Standalone bundle and SHA-256: installed and verified
 ```
 
-The current execution environment does not contain GTK/PyGObject or
-flatpak-builder, so Fedora GUI and Flatpak install checks remain owner-side
-checks.
+The local Fedora host provides GTK 4.22.4, libadwaita, Flatpak 1.18.0, and
+flatpak-builder 1.4.10. Portal services were active during launch testing.
 
-## GitHub handoff blocker
+## Remaining release work
 
-The target repository is `The-Blue-Blurr/ChromaSunder`, and it is empty and
-reachable. The connected GitHub integration has no installed account or
-repository installation for write operations. Its initial `README.md` commit
-returned GitHub API `403 Resource not accessible by integration`.
+The Flatpak smoke workflow has not yet run on GitHub. Signing material, GitHub
+Pages publication, and the tagged release workflow are not complete. The
+dedicated private signing key must remain outside the repository.
 
-After repository write access is enabled, publish the current source tree to
-`main`, run CI, configure the dedicated Flatpak GPG secrets, and complete the
-GitHub Pages repository and tagged release verification. The private signing
-key must never be committed.
+## Incomplete MVP gates
 
+- Worker crash, cache ownership, GUI state, golden image, conflict-policy, and
+  auxiliary-image batch coverage remain incomplete.
+- Mask and interval-image large benchmarks, accessibility review, and the full
+  Fedora manual matrix have not been run. Initial large-image and rotated
+  peak-memory measurements are recorded in `docs/performance.md`.
+- A dedicated public signing key must be embedded in the Flatpak descriptors;
+  GitHub Pages installation and second-version update tests are owner-side
+  release gates.

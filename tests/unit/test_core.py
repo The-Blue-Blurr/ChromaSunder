@@ -8,6 +8,7 @@ from PIL import Image
 from chromasunder.core.enums import IntervalFunction, SortingFunction
 from chromasunder.core.exporting import save_jpeg, save_png
 from chromasunder.core.imaging import normalize_binary_image, normalize_image
+from chromasunder.core.intervals import detect_intervals
 from chromasunder.core.models import PixelSortSettings
 from chromasunder.core.processing import process_image
 from chromasunder.core.validation import ValidationError
@@ -90,6 +91,26 @@ class CoreEngineTests(unittest.TestCase):
             different.close()
         finally:
             source.close()
+
+    def test_random_and_wave_intervals_use_seeded_inherited_widths(self):
+        row = [(0, 0, 0, 255)] * 30
+        random_intervals = detect_intervals(row, "random", 0.0, 1.0, 10, random.Random(1))
+        wave_intervals = detect_intervals(row, "waves", 0.0, 1.0, 5, random.Random(1))
+        self.assertEqual(random_intervals[:3], [(1, 9), (9, 16), (16, 18)])
+        self.assertEqual(wave_intervals[:3], [(0, 7), (7, 21), (21, 27)])
+
+    def test_file_edges_delimit_all_regions(self):
+        row = [(0, 0, 0, 255)] * 8
+        intervals = detect_intervals(
+            row,
+            "file-edges",
+            0.5,
+            1.0,
+            10,
+            random.Random(1),
+            [0, 0, 255, 255, 255, 0, 0, 0],
+        )
+        self.assertEqual(intervals, [(0, 2), (2, 5), (5, 8)])
 
     def test_dedicated_rng_is_used_without_global_random_state(self):
         source = make_image(32, 2)
@@ -174,6 +195,18 @@ class ImagingAndExportTests(unittest.TestCase):
             Image.new("L", (2, 2), 255).save(path)
             with self.assertRaises(ValidationError):
                 normalize_binary_image(path, (3, 3))
+
+    def test_binary_image_is_normalized_to_one_bit(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "mask.png"
+            Image.new("L", (2, 1), 127).save(path)
+            binary = normalize_binary_image(path, (2, 1))
+            self.assertEqual(binary.mode, "1")
+            self.assertEqual(binary.getpixel((0, 0)), 0)
+            binary.close()
 
     def test_atomic_png_and_jpeg_exports(self):
         from pathlib import Path

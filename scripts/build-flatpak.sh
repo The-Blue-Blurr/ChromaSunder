@@ -3,6 +3,6 @@ set -euo pipefail
 
 BUILD_DIR="${1:-build-dir}"
 REPO_DIR="${2:-repo}"
-flatpak-builder --force-clean --disable-rofiles-fuse --repo="$REPO_DIR" "$BUILD_DIR" \
+flatpak-builder --force-clean --disable-rofiles-fuse --arch=x86_64 \
+  --default-branch=stable --repo="$REPO_DIR" "$BUILD_DIR" \
   flatpak/io.github.the_blue_blurr.ChromaSunder.yml
-

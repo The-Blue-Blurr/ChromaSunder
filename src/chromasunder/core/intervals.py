@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import random
 from collections.abc import Sequence
 
@@ -53,13 +52,7 @@ def _random_intervals(
     intervals: list[tuple[int, int]] = []
     start = 0
     while start < length:
-        spread = max(1, characteristic_length // 2)
-        size = max(
-            1,
-            int(
-                rng.randint(max(1, characteristic_length - spread), characteristic_length + spread)
-            ),
-        )
+        size = max(1, int(characteristic_length * rng.random()))
         end = min(length, start + size)
         if end - start >= 2:
             intervals.append((start, end))
@@ -67,10 +60,17 @@ def _random_intervals(
     return intervals
 
 
-def _wave_intervals(length: int, characteristic_length: int) -> list[tuple[int, int]]:
-    period = max(2, characteristic_length)
-    flags = [math.sin((index / period) * math.tau) >= 0 for index in range(length)]
-    return _runs(flags)
+def _wave_intervals(
+    length: int, characteristic_length: int, rng: random.Random
+) -> list[tuple[int, int]]:
+    intervals: list[tuple[int, int]] = []
+    start = 0
+    while start < length:
+        end = min(length, start + characteristic_length + rng.randint(0, 10))
+        if end - start >= 2:
+            intervals.append((start, end))
+        start = end
+    return intervals
 
 
 def detect_intervals(
@@ -93,25 +93,28 @@ def detect_intervals(
     if selected is IntervalFunction.RANDOM:
         return _random_intervals(len(row), characteristic_length, rng)
     if selected is IntervalFunction.WAVES:
-        return _wave_intervals(len(row), characteristic_length)
+        return _wave_intervals(len(row), characteristic_length, rng)
     if selected is IntervalFunction.NONE:
         return [(0, len(row))] if len(row) >= 2 else []
     if selected is IntervalFunction.FILE:
         flags = [bool(value) for value in (interval_row or ())]
         return _runs(flags)
     if selected is IntervalFunction.FILE_EDGES:
-        flags = [bool(value) for value in (interval_row or ())]
-        if not flags:
+        values = [1.0 if value else 0.0 for value in (interval_row or ())]
+        if not values:
             return []
         boundaries = [0]
-        boundaries.extend(
-            index for index in range(1, len(flags)) if flags[index] != flags[index - 1]
-        )
-        boundaries.append(len(flags))
+        previous = 0.0
+        for index, current in enumerate(values):
+            if abs(current - previous) >= lower_threshold:
+                boundaries.append(index)
+            previous = current
+        boundaries.append(len(values))
+        boundaries = list(dict.fromkeys(boundaries))
         return [
             (start, end)
             for start, end in zip(boundaries, boundaries[1:], strict=False)
-            if flags[start] and end - start >= 2
+            if end - start >= 2
         ]
     raise ValueError(f"Unsupported interval function: {function}")
 

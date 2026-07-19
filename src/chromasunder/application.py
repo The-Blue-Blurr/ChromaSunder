@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import logging
+
 from chromasunder import __version__
+
+LOGGER = logging.getLogger(__name__)
 
 
 def main() -> int:
     from chromasunder.logging_setup import configure_logging
 
     configure_logging()
+    LOGGER.info("Starting ChromaSunder %s", __version__)
     try:
         import gi
 

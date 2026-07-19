@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from PIL import Image
-
-from chromasunder.core.exporting import save_jpeg, save_png
-from chromasunder.worker.controller import WorkerController, new_render_paths
+from chromasunder.worker.controller import WorkerController
 
 from .model import (
     BatchItem,
@@ -24,6 +22,7 @@ from .model import (
 )
 
 BatchCallback = Callable[[str, BatchItem | None, dict[str, Any]], None]
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -97,14 +96,21 @@ class BatchRunner:
             return
         item.status = BatchStatus.PROCESSING
         self._emit("item-start", item)
-        self._cache_path, self._preview_path = new_render_paths()
+        output_path = item.proposed_output or ""
+        output_format = (
+            "JPEG"
+            if self.snapshot.output_mode is OutputMode.PRESERVE and item.source_format == "JPEG"
+            else "PNG"
+        )
         request = {
             "source_path": item.source_path,
             "settings": self.snapshot.settings.to_dict(),
             "mask_path": self.snapshot.mask_path,
             "interval_path": self.snapshot.interval_path,
-            "cache_path": str(self._cache_path),
-            "preview_path": str(self._preview_path),
+            "output_path": output_path,
+            "output_format": output_format,
+            "jpeg_quality": self.snapshot.jpeg_quality,
+            "jpeg_background": self.snapshot.jpeg_background,
         }
         self.worker.start(request)
 
@@ -129,38 +135,13 @@ class BatchRunner:
         return messages
 
     def _complete_item(self, item: BatchItem | None) -> None:
-        if item is None or self.snapshot is None or self._cache_path is None:
+        if item is None or self.snapshot is None:
             return
-        output = Path(item.proposed_output or "")
-        try:
-            output.parent.mkdir(parents=True, exist_ok=True)
-            with Image.open(self._cache_path) as image:
-                if (
-                    self.snapshot.output_mode is OutputMode.PRESERVE
-                    and item.source_format == "JPEG"
-                ):
-                    save_jpeg(
-                        image,
-                        output,
-                        quality=self.snapshot.jpeg_quality,
-                        background=self.snapshot.jpeg_background,
-                    )
-                else:
-                    save_png(image, output)
-            item.status = BatchStatus.COMPLETED
-            self.summary.completed += 1
-            self._emit("item-complete", item)
-        except Exception as exc:
-            item.status = BatchStatus.FAILED
-            item.message = str(exc)
-            self.summary.failed += 1
-            self._emit("item-failed", item, message=str(exc))
-        finally:
-            self._cache_path.unlink(missing_ok=True)
-            if self._preview_path:
-                self._preview_path.unlink(missing_ok=True)
-            self.worker.close()
-            self._prepare_next()
+        item.status = BatchStatus.COMPLETED
+        self.summary.completed += 1
+        self._emit("item-complete", item)
+        self.worker.finish()
+        self._prepare_next()
 
     def _fail_item(self, item: BatchItem | None, message: str) -> None:
         if item is None or item.status != BatchStatus.PROCESSING:
@@ -169,6 +150,10 @@ class BatchRunner:
         item.message = message
         self.summary.failed += 1
         self.worker.close()
+        if self._cache_path:
+            self._cache_path.unlink(missing_ok=True)
+        if self._preview_path:
+            self._preview_path.unlink(missing_ok=True)
         self._emit("item-failed", item, message=message)
         self._prepare_next()
 
@@ -188,5 +173,13 @@ class BatchRunner:
             return
         self._done_sent = True
         self.worker.close()
+        LOGGER.info(
+            "Batch finished: total=%s completed=%s skipped=%s failed=%s cancelled=%s",
+            self.summary.total,
+            self.summary.completed,
+            self.summary.skipped,
+            self.summary.failed,
+            self.summary.cancelled,
+        )
         self._emit("finished", None, summary=self.summary)
         self.snapshot = None

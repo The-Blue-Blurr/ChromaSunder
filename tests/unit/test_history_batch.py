@@ -12,6 +12,7 @@ from chromasunder.gui.batch.model import (
     OutputMode,
     numeric_suffix_path,
     preflight_outputs,
+    validate_batch_dimensions,
 )
 from chromasunder.gui.history import SettingsHistory
 
@@ -46,6 +47,18 @@ class HistoryAndBatchTests(unittest.TestCase):
             self.assertTrue(report.has_conflicts)
             chosen = numeric_suffix_path(output)
             self.assertEqual(chosen.name, "photo_pxsorted_1.png")
+
+    def test_inactive_interval_image_allows_mixed_dimensions(self):
+        items = [
+            BatchItem("first.png", dimensions=(2, 2), source_format="PNG"),
+            BatchItem("second.png", dimensions=(3, 3), source_format="PNG"),
+        ]
+        snapshot = BatchSnapshot(
+            PixelSortSettings(interval_function="threshold", seed=1),
+            "/tmp",
+            interval_path="unused.png",
+        )
+        validate_batch_dimensions(items, snapshot)
 
 
 if __name__ == "__main__":
