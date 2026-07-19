@@ -29,8 +29,7 @@ This is a to-do list of things I would like to implement to make this app nicer.
 
 ## V1.2 - The Makeover
 
-- [ ] Alternative color themes
-  Supporting a few controlled themes is straightforward, but requires testing contrast, widget states, icons, dialogs, and accessibility across each theme.
+- [ ] Move Render Preview and Export buttons to bottom of window
 
 - [ ] Batch thumbnails
   Thumbnail generation is simple, but the app must generate them asynchronously, cache them, avoid excessive memory use, and keep large queues responsive.
@@ -39,18 +38,19 @@ This is a to-do list of things I would like to implement to make this app nicer.
 
 - [ ] Add icons to Processing and Export buttons
 
-## V1.3 - The Mathematical Update
+## V1.3 - The Speed Update
 
-- [ ] TIFF support
-  Basic single-frame TIFF support is easy through Pillow. The difficulty comes from deciding how to handle color modes, high bit depth, alpha, compression types, multipage files, and large memory usage.
+- [ ] Figure out how to make rendering faster
 
-- [ ] Additional sorting algorithms
-  Simple pixel-value sorting methods are easy to add. Each new algorithm still requires UI integration, preset compatibility, validation, documentation, and golden-image tests.
-
-## V1.4 - The Speed Update
+## V1.4 - The Lightning Update
 
 - [ ] Live preview while adjusting settings
   Requires debounce logic, preview-resolution scaling, job cancellation, stale-result prevention, and careful coordination between rapid UI changes and worker processes.
 
 - [ ] Parallel batch processing
   Requires a managed worker pool, memory-aware concurrency limits, reliable cancellation, progress synchronization, failure isolation, and protection against several large images exhausting system memory.
+
+## V1.5 - The Mathematical Update
+
+- [ ] Additional sorting algorithms
+  Simple pixel-value sorting methods are easy to add. Each new algorithm still requires UI integration, preset compatibility, validation, documentation, and golden-image tests.
