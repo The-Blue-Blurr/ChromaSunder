@@ -55,7 +55,7 @@ def main() -> int:
         def _about(self) -> None:
             window = self.get_active_window()
             about = Adw.AboutDialog(
-                application_name="ChromaSunder",
+                application_name="Chroma Sunder",
                 application_icon="io.github.the_blue_blurr.ChromaSunder",
                 version=__version__,
                 developer_name="The-Blue-Blurr",

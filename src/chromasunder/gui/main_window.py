@@ -45,7 +45,7 @@ from chromasunder.gui.persistence import SettingsStore
 from chromasunder.gui.settings_controller import sensitivity_for_mode
 from chromasunder.worker.controller import WorkerController, clean_abandoned_cache, new_render_paths
 
-APP_TITLE = "ChromaSunder"
+APP_TITLE = "Chroma Sunder"
 
 
 if Adw is not None:
@@ -120,7 +120,7 @@ if Adw is not None:
             header.pack_end(self.export_button)
 
             paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
-            paned.set_position(850)
+            paned.set_position(1040)
             self.stale_banner = Adw.Banner()
             self.stale_banner.set_revealed(False)
             content.append(self.stale_banner)
@@ -200,8 +200,11 @@ if Adw is not None:
 
         def _build_controls_panel(self):
             scroller = Gtk.ScrolledWindow()
-            scroller.set_min_content_width(360)
+            scroller.set_min_content_width(220)
+            scroller.set_propagate_natural_width(False)
+            scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
             controls = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+            controls.set_hexpand(True)
             controls.set_margin_top(12)
             controls.set_margin_bottom(12)
             controls.set_margin_start(12)

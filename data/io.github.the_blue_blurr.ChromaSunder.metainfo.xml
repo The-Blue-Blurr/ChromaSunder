@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>io.github.the_blue_blurr.ChromaSunder</id>
-  <name>ChromaSunder</name>
+  <name>Chroma Sunder</name>
   <summary>Graphical pixel sorting for Fedora GNOME</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
@@ -22,4 +22,3 @@
     </release>
   </releases>
 </component>
-

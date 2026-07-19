@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=ChromaSunder
+Name=Chroma Sunder
 Comment=Graphical pixel sorting for Fedora GNOME
 Exec=chromasunder
 Icon=io.github.the_blue_blurr.ChromaSunder
@@ -8,4 +8,3 @@ Type=Application
 Categories=Graphics;GTK;
 StartupNotify=true
 Keywords=pixel;sorting;glitch;image;
-

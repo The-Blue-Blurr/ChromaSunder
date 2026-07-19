@@ -11,7 +11,13 @@ def build_batch_view(Gtk, Adw, model, callbacks: dict[str, Callable]):
     group = Adw.PreferencesGroup(title="Batch Queue")
     revealer = Gtk.Revealer(reveal_child=False)
     content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-    buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+    buttons = Gtk.FlowBox()
+    buttons.set_column_spacing(6)
+    buttons.set_row_spacing(6)
+    buttons.set_homogeneous(False)
+    buttons.set_min_children_per_line(1)
+    buttons.set_max_children_per_line(3)
+    buttons.set_selection_mode(Gtk.SelectionMode.NONE)
     for label, key in (
         ("Add Images", "add"),
         ("Remove Selected", "remove"),
@@ -21,8 +27,9 @@ def build_batch_view(Gtk, Adw, model, callbacks: dict[str, Callable]):
         ("Cancel Batch", "cancel"),
     ):
         button = Gtk.Button(label=label)
+        button.set_hexpand(False)
         button.connect("clicked", lambda _button, action=key: callbacks[action]())
-        buttons.append(button)
+        buttons.insert(button, -1)
     content.append(buttons)
     list_box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE)
     content.append(list_box)
