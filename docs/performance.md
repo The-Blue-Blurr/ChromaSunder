@@ -69,3 +69,19 @@ output calls. It therefore already receives Pillow's optimized transpose path,
 regardless of the requested bicubic/nearest filter. A duplicate application
 fast path was rejected. Golden tests cover direction, dimensions, alpha,
 normalized angles, asymmetric binary auxiliaries, and the inverse transform.
+
+## Sorting-Key Stage
+
+The renderer now resolves one specialized key function before processing rows.
+Lightness uses the sum of the maximum and minimum byte channels; intensity uses
+the channel sum; and minimum uses direct byte comparison. These integer keys
+are monotonic equivalents of the previous normalized values and preserve exact
+ties. Hue and saturation conservatively retain `colorsys.rgb_to_hls()`. The
+public normalized `sorting_key()` API is unchanged.
+
+On the 1920x1080 unmasked lightness case, total median time fell from 1.924 s
+to 0.614 s (measured range 0.599-0.618 s), with median peak RSS effectively
+unchanged at 57.5 MiB. The threshold/hue/dense-mask case improved from 3.532 s
+to 3.001 s (2.914-3.227 s), because interval lightness calculation and HLS hue
+calculation remain significant there. This stage changes no row storage or
+output writes.

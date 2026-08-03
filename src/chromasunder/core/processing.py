@@ -12,7 +12,7 @@ from .enums import IntervalFunction
 from .imaging import normalize_binary_image, normalize_image
 from .intervals import detect_intervals
 from .models import PixelSortSettings
-from .sorting import sorting_key
+from .sorting import SortingKey, sorting_key_function
 from .validation import ValidationError, validate_settings
 
 
@@ -71,6 +71,7 @@ def _sort_row(
     mask_row: Sequence[int] | None,
     settings: PixelSortSettings,
     rng: random.Random,
+    sort_key: SortingKey,
 ) -> None:
     for start, end in intervals:
         if settings.randomness and rng.random() * 100.0 < settings.randomness:
@@ -82,7 +83,7 @@ def _sort_row(
             continue
         sorted_pixels = sorted(
             (source_row[index] for index in positions),
-            key=lambda pixel: sorting_key(pixel, settings.sorting_function),
+            key=sort_key,
         )
         for index, pixel in zip(positions, sorted_pixels, strict=True):
             output_pixels[index, y] = pixel
@@ -139,6 +140,7 @@ def process_image(
             "dimension-mismatch",
         )
     generator = rng or random.Random(settings.seed)
+    sort_key = sorting_key_function(settings.sorting_function)
     output = working_source.copy()
     source_pixels = working_source.load()
     output_pixels = output.load()
@@ -164,7 +166,7 @@ def process_image(
             generator,
             interval_row,
         )
-        _sort_row(row, output_pixels, y, intervals, mask_row, settings, generator)
+        _sort_row(row, output_pixels, y, intervals, mask_row, settings, generator, sort_key)
         if progress is not None:
             progress(y + 1, total_rows)
 

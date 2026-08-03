@@ -11,6 +11,7 @@ from chromasunder.core.imaging import normalize_binary_image, normalize_image
 from chromasunder.core.intervals import detect_intervals
 from chromasunder.core.models import PixelSortSettings
 from chromasunder.core.processing import process_image
+from chromasunder.core.sorting import sorting_key, sorting_key_function
 from chromasunder.core.validation import ValidationError
 
 
@@ -23,6 +24,43 @@ def make_image(width: int = 16, height: int = 8) -> Image.Image:
 
 
 class CoreEngineTests(unittest.TestCase):
+    def test_public_and_specialized_sorting_keys_cover_channel_extremes(self):
+        pixels = [
+            (0, 0, 0, 0),
+            (255, 255, 255, 255),
+            (255, 0, 0, 32),
+            (0, 255, 0, 64),
+            (0, 0, 255, 128),
+            (255, 127, 0, 192),
+            (17, 17, 17, 255),
+            (17, 17, 17, 0),
+        ]
+        for function in SortingFunction:
+            key = sorting_key_function(function)
+            with self.subTest(function=function):
+                self.assertEqual(
+                    sorted(pixels, key=key),
+                    sorted(pixels, key=lambda pixel: sorting_key(pixel, function)),
+                )
+
+    def test_specialized_sorting_keys_preserve_ties_and_alpha_order(self):
+        pixels = [
+            (10, 20, 30, 200),
+            (30, 20, 10, 100),
+            (10, 20, 30, 50),
+        ]
+        for function in (SortingFunction.LIGHTNESS, SortingFunction.INTENSITY):
+            with self.subTest(function=function):
+                self.assertEqual(sorted(pixels, key=sorting_key_function(function)), pixels)
+
+    def test_public_sorting_key_values_remain_normalized(self):
+        self.assertEqual(sorting_key((0, 0, 0, 123), "lightness"), 0.0)
+        self.assertEqual(sorting_key((255, 255, 255, 123), "lightness"), 1.0)
+        self.assertEqual(sorting_key((255, 0, 0, 123), "hue"), 0.0)
+        self.assertEqual(sorting_key((255, 0, 0, 123), "saturation"), 1.0)
+        self.assertEqual(sorting_key((255, 0, 0, 123), "intensity"), 1.0 / 3.0)
+        self.assertEqual(sorting_key((255, 127, 63, 123), "minimum"), 63 / 255.0)
+
     def test_all_sorting_modes_render(self):
         source = make_image()
         try:
