@@ -19,9 +19,9 @@ except ImportError:  # pragma: no cover - exercised only on non-GTK development 
 
 from chromasunder.core.enums import IntervalFunction, SortingFunction
 from chromasunder.core.exporting import suggest_output_path
-from chromasunder.core.imaging import normalize_image
 from chromasunder.core.presets import PresetError, load_preset, save_preset
 from chromasunder.core.validation import ValidationError
+from chromasunder.gui.angle_dial import AngleDial, normalize_angle
 from chromasunder.gui.batch.controller import BatchRunner
 from chromasunder.gui.batch.model import (
     BatchItem,
@@ -29,11 +29,14 @@ from chromasunder.gui.batch.model import (
     BatchStatus,
     ConflictPolicy,
     OutputMode,
+    inspect_item,
     numeric_suffix_path,
     preflight_outputs,
 )
 from chromasunder.gui.batch.view import build_batch_view
 from chromasunder.gui.dialogs import (
+    show_apply_preset_dialog,
+    show_clear_recent_dialog,
     show_conflict_dialog,
     show_error,
     show_no_render_dialog,
@@ -41,7 +44,9 @@ from chromasunder.gui.dialogs import (
     show_suffix_dialog,
 )
 from chromasunder.gui.editor_controller import EditorController
+from chromasunder.gui.file_import import local_paths
 from chromasunder.gui.persistence import SettingsStore
+from chromasunder.gui.recent import RecentStore
 from chromasunder.gui.settings_controller import sensitivity_for_mode
 from chromasunder.worker.controller import WorkerController, clean_abandoned_cache, new_render_paths
 
@@ -68,8 +73,8 @@ SETTING_HELP = {
         "usually produce longer streaks."
     ),
     "angle": (
-        "Sets the direction of sorting in degrees. Zero sorts horizontally; 90 degrees produces "
-        "vertical sorting."
+        "Sets the direction of sorting from 0 to 360 degrees. Drag the dial or enter a precise "
+        "value; zero sorts horizontally and 90 degrees produces vertical sorting."
     ),
     "randomness": (
         "Sets the percentage of intervals that are skipped. Zero sorts every interval; higher "
@@ -156,6 +161,7 @@ if Adw is not None:
             self.worker = WorkerController()
             self.batch_runner = BatchRunner(WorkerController())
             self.store = SettingsStore()
+            self.recent = RecentStore()
             self.batch_items: list[BatchItem] = []
             self.batch_output_folder: str | None = None
             self._render_snapshot = None
@@ -163,6 +169,7 @@ if Adw is not None:
             self._worker_operation = "render"
             self._render_timeout = None
             self._batch_timeout = None
+            self._busy = False
             self._build_ui()
             self._restore_settings()
             self.editor.settings_controller.add_listener(
@@ -198,6 +205,9 @@ if Adw is not None:
             self.open_button = Gtk.Button(label="Open")
             self.open_button.connect("clicked", lambda _button: self._open_image())
             header.pack_start(self.open_button)
+            self.recents_button = Gtk.MenuButton(label="Recents")
+            self.recents_button.set_menu_model(self._recent_images_menu())
+            header.pack_start(self.recents_button)
             self.presets_button = Gtk.MenuButton(label="Presets")
             self.presets_button.set_menu_model(self._preset_menu())
             header.pack_start(self.presets_button)
@@ -215,7 +225,7 @@ if Adw is not None:
             header.pack_start(self.help_button)
             header.pack_start(self.about_button)
 
-            self.render_button = Gtk.Button(label="Render Preview")
+            self.render_button = Gtk.Button(label="Render")
             self.render_button.add_css_class("suggested-action")
             self.render_button.connect("clicked", lambda _button: self._render())
             header.pack_end(self.render_button)
@@ -252,11 +262,17 @@ if Adw is not None:
 
         def _preset_menu(self):
             menu = Gio.Menu()
+            self._recent_presets_section = Gio.Menu()
+            menu.append_section("Recent Presets", self._recent_presets_section)
+            menu.append_section(None, Gio.Menu())
+            menu.append("Clear Recent Presets", "win.clear-recent-presets")
+            menu.append_section(None, Gio.Menu())
             menu.append("Load Preset", "win.load-preset")
             menu.append("Save Preset", "win.save-preset")
             menu.append("Reset Settings", "win.reset-settings")
             menu.append("New Variation", "win.new-variation")
             for name, callback in (
+                ("clear-recent-presets", self._clear_recent_presets),
                 ("load-preset", self._load_preset),
                 ("save-preset", self._save_preset),
                 ("reset-settings", self._reset_settings),
@@ -265,7 +281,117 @@ if Adw is not None:
                 action = Gio.SimpleAction.new(name, None)
                 action.connect("activate", lambda _action, _parameter, fn=callback: fn())
                 self.add_action(action)
+            self._refresh_recent_menus()
             return menu
+
+        def _recent_images_menu(self):
+            menu = Gio.Menu()
+            self._recent_images_section = Gio.Menu()
+            menu.append_section("Recent Images", self._recent_images_section)
+            menu.append_section(None, Gio.Menu())
+            menu.append("Clear Recent Files", "win.clear-recent-images")
+            action = Gio.SimpleAction.new("clear-recent-images", None)
+            action.connect("activate", lambda _action, _parameter: self._clear_recent_images())
+            self.add_action(action)
+            no_op = Gio.SimpleAction.new("no-op", None)
+            no_op.set_enabled(False)
+            self.add_action(no_op)
+            self._refresh_recent_menus()
+            return menu
+
+        def _refresh_recent_menus(self) -> None:
+            if not hasattr(self, "_recent_images_section"):
+                return
+            self._recent_images_section.remove_all()
+            for index, path in enumerate(self.recent.images):
+                self._recent_images_section.append(
+                    self._recent_label(path), f"win.open-recent-image-{index}"
+                )
+                self._ensure_recent_action(
+                    f"open-recent-image-{index}", lambda index=index: self._open_recent_image(index)
+                )
+            if not self.recent.images:
+                self._recent_images_section.append("No recent images", "win.no-op")
+            if hasattr(self, "_recent_presets_section"):
+                self._recent_presets_section.remove_all()
+                for index, path in enumerate(self.recent.presets):
+                    self._recent_presets_section.append(
+                        self._recent_label(path), f"win.open-recent-preset-{index}"
+                    )
+                    self._ensure_recent_action(
+                        f"open-recent-preset-{index}",
+                        lambda index=index: self._open_recent_preset(index),
+                    )
+                if not self.recent.presets:
+                    self._recent_presets_section.append("No recent presets", "win.no-op")
+
+        def _ensure_recent_action(self, name: str, callback) -> None:
+            if self.lookup_action(name) is not None:
+                return
+            action = Gio.SimpleAction.new(name, None)
+            action.connect("activate", lambda _action, _parameter: callback())
+            self.add_action(action)
+
+        def _recent_label(self, path: str) -> str:
+            item = Path(path)
+            label = f"{item.name} ({item.parent.name})"
+            if not self.recent.is_available(path):
+                label += " [unavailable]"
+            return label
+
+        def _refresh_recent_menu_models(self) -> None:
+            self._refresh_recent_menus()
+
+        def _open_recent_image(self, index: int) -> None:
+            if self._busy or index >= len(self.recent.images):
+                return
+            path = self.recent.images[index]
+            if not self.recent.is_available(path):
+                show_error(
+                    Adw, self, "Unable to open recent image", f"The file is unavailable:\n{path}"
+                )
+                return
+            try:
+                self._open_source_path(path)
+            except (ValidationError, OSError) as exc:
+                show_error(Adw, self, "Unable to open image", str(exc))
+
+        def _open_recent_preset(self, index: int) -> None:
+            if self._busy or index >= len(self.recent.presets):
+                return
+            path = self.recent.presets[index]
+            if not self.recent.is_available(path):
+                show_error(
+                    Adw, self, "Unable to load recent preset", f"The file is unavailable:\n{path}"
+                )
+                return
+            self._load_preset_path(path)
+
+        def _clear_recent_images(self) -> None:
+            show_clear_recent_dialog(
+                Adw,
+                self,
+                "files",
+                lambda response: self._finish_clear_recent_images(response),
+            )
+
+        def _finish_clear_recent_images(self, response: str) -> None:
+            if response == "clear":
+                self.recent.clear_images()
+                self._refresh_recent_menu_models()
+
+        def _clear_recent_presets(self) -> None:
+            show_clear_recent_dialog(
+                Adw,
+                self,
+                "presets",
+                lambda response: self._finish_clear_recent_presets(response),
+            )
+
+        def _finish_clear_recent_presets(self, response: str) -> None:
+            if response == "clear":
+                self.recent.clear_presets()
+                self._refresh_recent_menu_models()
 
         def _build_preview_panel(self):
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -277,7 +403,7 @@ if Adw is not None:
             self.preview_stack.set_hexpand(True)
             self.preview_stack.set_vexpand(True)
             self.preview_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
-            empty = Gtk.Label(label="Open an image to begin", xalign=0.5, yalign=0.5)
+            empty = Gtk.Label(label="Open an image or drop it here", xalign=0.5, yalign=0.5)
             self.preview_stack.add_named(empty, "empty")
             self.original_picture = Gtk.Picture()
             self.original_picture.set_content_fit(Gtk.ContentFit.CONTAIN)
@@ -286,6 +412,7 @@ if Adw is not None:
             self.preview_stack.add_named(self.original_picture, "original")
             self.preview_stack.add_named(self.rendered_picture, "rendered")
             self.preview_stack.set_visible_child_name("empty")
+            self.preview_stack.add_controller(self._file_drop_target(self._drop_source))
             box.append(self.preview_stack)
 
             toggle_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -340,12 +467,21 @@ if Adw is not None:
             self._add_info_popover(self.sorting_row, SETTING_HELP["sorting_function"])
             processing.add(self.interval_row)
             processing.add(self.sorting_row)
-            self.lower_row = self._spin_row("Lower threshold", 0.0, 1.0, 0.01, 2)
-            self.upper_row = self._spin_row("Upper threshold", 0.0, 1.0, 0.01, 2)
+            self.lower_row = self._slider_row("Lower threshold", 0.0, 1.0, 0.01, 2)
+            self.upper_row = self._slider_row("Upper threshold", 0.0, 1.0, 0.01, 2)
             self.length_row = self._spin_row("Characteristic length", 1, 10000, 1, 0)
-            self.angle_row = self._spin_row("Angle", -360, 360, 1, 2)
-            self.randomness_row = self._spin_row("Randomness", 0, 100, 1, 1)
-            self.seed_row = self._spin_row("Seed", 0, 2**31 - 1, 1, 0)
+            self.angle_row = self._angle_row("Angle")
+            self.randomness_row = self._slider_row("Randomness", 0, 100, 1, 1)
+            self.seed_row = self._seed_row("Seed")
+            self.seed_randomize_button = Gtk.Button(icon_name="media-playlist-shuffle-symbolic")
+            self.seed_randomize_button.set_valign(Gtk.Align.CENTER)
+            self.seed_randomize_button.add_css_class("flat")
+            self.seed_randomize_button.set_tooltip_text("Randomize seed")
+            self.seed_randomize_button.update_property(
+                [Gtk.AccessibleProperty.LABEL], ["Randomize seed"]
+            )
+            self.seed_randomize_button.connect("clicked", lambda _button: self._new_variation())
+            self.seed_row.add_suffix(self.seed_randomize_button)
             for row, help_key in (
                 (self.lower_row, "lower_threshold"),
                 (self.upper_row, "upper_threshold"),
@@ -356,7 +492,24 @@ if Adw is not None:
             ):
                 self._add_info_popover(row, SETTING_HELP[help_key])
                 processing.add(row)
-                row.connect("notify::value", self._numeric_changed)
+                if row is self.seed_row:
+                    row._chromasunder_entry.connect(
+                        "activate",
+                        lambda _entry, numeric_row=row: self._numeric_changed(numeric_row),
+                    )
+                    focus = Gtk.EventControllerFocus.new()
+                    focus.connect(
+                        "leave", lambda _focus, numeric_row=row: self._numeric_changed(numeric_row)
+                    )
+                    row._chromasunder_entry.add_controller(focus)
+                else:
+                    adjustment = getattr(row, "_chromasunder_adjustment", row)
+                    adjustment.connect(
+                        "notify::value",
+                        lambda _adjustment, pspec, numeric_row=row: self._numeric_changed(
+                            numeric_row, pspec
+                        ),
+                    )
 
             auxiliary = Adw.PreferencesGroup(title="Auxiliary Images")
             processing_page.append(auxiliary)
@@ -404,8 +557,72 @@ if Adw is not None:
                     "cancel": self._cancel_batch,
                 },
             )
+            batch_group.add_controller(self._file_drop_target(self._drop_batch))
             export_page.append(batch_group)
             return scroller
+
+        def _file_drop_target(self, callback):
+            target = Gtk.DropTarget.new(Gdk.FileList.__gtype__, Gdk.DragAction.COPY)
+            target.set_gtypes([Gdk.FileList.__gtype__, Gio.File.__gtype__])
+            target.connect("accept", self._accept_file_drop)
+            target.connect("drop", callback)
+            return target
+
+        def _accept_file_drop(self, _target, drop) -> bool:
+            if self._busy:
+                return False
+            formats = drop.get_formats().union_deserialize_gtypes()
+            return formats.contain_gtype(Gdk.FileList.__gtype__) or formats.contain_gtype(
+                Gio.File.__gtype__
+            )
+
+        @staticmethod
+        def _dropped_files(value):
+            if isinstance(value, Gdk.FileList):
+                return value.get_files()
+            if isinstance(value, Gio.File):
+                return [value]
+            return []
+
+        def _drop_source(self, _target, value, _x, _y) -> bool:
+            if self._busy:
+                return False
+            files = self._dropped_files(value)
+            paths, non_local = local_paths(files)
+            if len(files) != 1:
+                show_error(
+                    Adw,
+                    self,
+                    "Unable to open image",
+                    "Drop exactly one image onto the preview.",
+                )
+                return True
+            if non_local:
+                show_error(
+                    Adw,
+                    self,
+                    "Unable to open image",
+                    "Only local image files can be opened.",
+                )
+                return True
+            try:
+                self._open_source_path(paths[0])
+            except (ValidationError, OSError) as exc:
+                show_error(Adw, self, "Unable to open image", str(exc))
+            return True
+
+        def _drop_batch(self, _target, value, _x, _y) -> bool:
+            if self._busy:
+                return False
+            files = self._dropped_files(value)
+            if not files:
+                return False
+            paths, non_local = local_paths(files)
+            failures = [f"{name}: only local image files are supported" for name in non_local]
+            failures.extend(self._add_batch_paths(paths))
+            self.batch_toggle.set_active(True)
+            self._report_batch_import_failures(failures)
+            return True
 
         def _combo_row(self, title, values, callback):
             row = Adw.ComboRow(title=title)
@@ -423,14 +640,108 @@ if Adw is not None:
             row._chromasunder_syncing = False
             return row
 
+        def _slider_row(self, title, lower, upper, step, digits):
+            adjustment = Gtk.Adjustment(
+                value=lower, lower=lower, upper=upper, step_increment=step, page_increment=step * 10
+            )
+            row = Adw.ActionRow(title=title)
+            controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            controls.set_hexpand(True)
+
+            scale = Gtk.Scale.new(Gtk.Orientation.HORIZONTAL, adjustment)
+            scale.set_draw_value(False)
+            scale.set_hexpand(True)
+            scale.set_size_request(100, -1)
+            controls.append(scale)
+
+            spin = Gtk.SpinButton.new(adjustment, step, digits)
+            spin.set_width_chars(5)
+            spin.set_valign(Gtk.Align.CENTER)
+            controls.append(spin)
+
+            row.add_suffix(controls)
+            row.set_activatable_widget(spin)
+            row._chromasunder_adjustment = adjustment
+            row._chromasunder_syncing = False
+            return row
+
+        def _angle_row(self, title):
+            adjustment = Gtk.Adjustment(
+                value=0, lower=0, upper=360, step_increment=1, page_increment=15
+            )
+            row = Adw.ActionRow(title=title)
+            controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+
+            dial = AngleDial(adjustment)
+            controls.append(dial)
+
+            spin = Gtk.SpinButton.new(adjustment, 1, 0)
+            spin.set_width_chars(4)
+            spin.set_valign(Gtk.Align.CENTER)
+            controls.append(spin)
+
+            row.add_suffix(controls)
+            row.set_activatable_widget(spin)
+            row._chromasunder_adjustment = adjustment
+            row._chromasunder_syncing = False
+            return row
+
+        def _seed_row(self, title):
+            row = Adw.ActionRow(title=title)
+            entry = Gtk.Entry()
+            entry.set_width_chars(10)
+            entry.set_max_width_chars(10)
+            entry.set_max_length(10)
+            entry.set_input_purpose(Gtk.InputPurpose.DIGITS)
+            entry.set_valign(Gtk.Align.CENTER)
+            row.add_suffix(entry)
+            row.set_activatable_widget(entry)
+            row._chromasunder_entry = entry
+            row._chromasunder_syncing = False
+            return row
+
         def _file_row(self, title, callback):
             row = Adw.ActionRow(title=title, subtitle="None selected")
+            indicator = Gtk.Image.new_from_icon_name("emblem-ok-symbolic")
+            indicator.set_pixel_size(16)
+            indicator.set_visible(False)
+            row.add_prefix(indicator)
+
             button = Gtk.Button(label="Choose")
             button.set_valign(Gtk.Align.CENTER)
             button.connect("clicked", lambda _button: callback(row))
             row.add_suffix(button)
+
+            clear_button = Gtk.Button(icon_name="edit-clear-symbolic")
+            clear_button.set_valign(Gtk.Align.CENTER)
+            clear_button.add_css_class("flat")
+            clear_button.set_tooltip_text(f"Clear {title.lower()}")
+            clear_button.update_property([Gtk.AccessibleProperty.LABEL], [f"Clear {title.lower()}"])
+            clear_button.set_sensitive(False)
+            clear_button.connect("clicked", lambda _button: self._clear_file_row(row))
+            row.add_suffix(clear_button)
+
+            row._chromasunder_indicator = indicator
             row._chromasunder_button = button
+            row._chromasunder_clear_button = clear_button
             return row
+
+        @staticmethod
+        def _sync_file_row(row, path: str | None) -> None:
+            selected = bool(path)
+            row.set_subtitle(Path(path).name if path else "None selected")
+            row._chromasunder_indicator.set_visible(selected)
+            row._chromasunder_clear_button.set_sensitive(selected)
+
+        def _clear_file_row(self, row) -> None:
+            if row is self.mask_row:
+                self.editor.set_mask(None)
+            elif row is self.interval_image_row:
+                self.editor.set_interval_image(None)
+            else:
+                return
+            self._sync_file_row(row, None)
+            self._set_stale_banner()
 
         def _add_info_popover(self, row, text) -> None:
             button = Gtk.MenuButton(icon_name="dialog-information-symbolic")
@@ -519,12 +830,15 @@ if Adw is not None:
                 (self.lower_row, settings.lower_threshold),
                 (self.upper_row, settings.upper_threshold),
                 (self.length_row, settings.characteristic_length),
-                (self.angle_row, settings.angle),
+                (
+                    self.angle_row,
+                    normalize_angle(settings.angle, preserve_full_turn=True),
+                ),
                 (self.randomness_row, settings.randomness),
                 (self.seed_row, settings.seed),
             ):
                 row._chromasunder_syncing = True
-                row.set_value(value)
+                self._set_numeric_value(row, value)
                 row._chromasunder_syncing = False
             sensitivity = sensitivity_for_mode(settings.interval_function)
             self.lower_row.set_sensitive(sensitivity.lower)
@@ -544,7 +858,7 @@ if Adw is not None:
             values = list(SortingFunction)
             self.editor.update_settings(sorting_function=values[row.get_selected()])
 
-        def _numeric_changed(self, row, _pspec) -> None:
+        def _numeric_changed(self, row, _pspec=None) -> None:
             if getattr(row, "_chromasunder_syncing", False):
                 return
             values = {
@@ -558,12 +872,41 @@ if Adw is not None:
             name = values.get(row)
             if name:
                 try:
-                    value = row.get_value()
+                    value = self._get_numeric_value(row)
                     if name in {"characteristic_length", "seed"}:
                         value = int(value)
+                    if name == "seed" and value > 2**31 - 1:
+                        raise ValidationError("The seed must be between 0 and 2147483647.")
                     self.editor.update_settings(**{name: value})
-                except ValidationError as exc:
-                    self.status_label.set_text(str(exc))
+                except (ValueError, ValidationError) as exc:
+                    row._chromasunder_syncing = True
+                    self._set_numeric_value(row, getattr(self.editor.settings, name))
+                    row._chromasunder_syncing = False
+                    self.status_label.set_text(
+                        str(exc)
+                        if isinstance(exc, ValidationError)
+                        else "The seed must be an integer."
+                    )
+
+        @staticmethod
+        def _get_numeric_value(row) -> float:
+            entry = getattr(row, "_chromasunder_entry", None)
+            if entry is not None:
+                return int(entry.get_text())
+            adjustment = getattr(row, "_chromasunder_adjustment", None)
+            return adjustment.get_value() if adjustment is not None else row.get_value()
+
+        @staticmethod
+        def _set_numeric_value(row, value) -> None:
+            entry = getattr(row, "_chromasunder_entry", None)
+            if entry is not None:
+                entry.set_text(str(int(value)))
+                return
+            adjustment = getattr(row, "_chromasunder_adjustment", None)
+            if adjustment is not None:
+                adjustment.set_value(value)
+            else:
+                row.set_value(value)
 
         def _toggle_preview(self, button) -> None:
             if button is self.original_toggle and button.get_active():
@@ -579,15 +922,25 @@ if Adw is not None:
                 file = dialog.open_finish(result)
                 if file is None:
                     return
-                self.editor.open_source(file.get_path())
-                self._show_source(file.get_path())
-                self._clear_rendered_view()
-                self.status_label.set_text(Path(file.get_path()).name)
+                paths, non_local = local_paths([file])
+                if non_local:
+                    raise ValidationError("Only local image files can be opened.", "non-local-file")
+                self._open_source_path(paths[0])
             except GLib.Error as exc:
                 if not exc.matches(Gtk.DialogError.quark(), Gtk.DialogError.DISMISSED):
                     show_error(Adw, self, "Unable to open image", str(exc))
             except (ValidationError, OSError) as exc:
                 show_error(Adw, self, "Unable to open image", str(exc))
+
+        def _open_source_path(self, path: str) -> None:
+            self.editor.open_source(path)
+            self.recent.add_image(path)
+            self._refresh_recent_menu_models()
+            self._sync_file_row(self.mask_row, self.editor.state.mask_path)
+            self._sync_file_row(self.interval_image_row, self.editor.state.interval_path)
+            self._show_source(path)
+            self._clear_rendered_view()
+            self.status_label.set_text(Path(path).name)
 
         def _show_source(self, path: str) -> None:
             self.original_picture.set_filename(path)
@@ -616,7 +969,7 @@ if Adw is not None:
                 if file:
                     path = file.get_path()
                     self.editor.set_mask(path)
-                    row.set_subtitle(Path(path).name)
+                    self._sync_file_row(row, self.editor.state.mask_path)
                     self._set_stale_banner()
             except GLib.Error:
                 return
@@ -635,7 +988,7 @@ if Adw is not None:
                 if file:
                     path = file.get_path()
                     self.editor.set_interval_image(path)
-                    row.set_subtitle(Path(path).name)
+                    self._sync_file_row(row, self.editor.state.interval_path)
                     self._set_stale_banner()
             except GLib.Error:
                 return
@@ -741,8 +1094,10 @@ if Adw is not None:
                 self._cancel_batch()
 
         def _set_busy(self, busy: bool) -> None:
+            self._busy = busy
             for widget in (
                 self.open_button,
+                self.recents_button,
                 self.presets_button,
                 self.render_button,
                 self.export_button,
@@ -901,12 +1256,33 @@ if Adw is not None:
             try:
                 file = dialog.open_finish(result)
                 if file:
-                    settings = load_preset(file.get_path())
-                    self.editor.settings_controller.apply_preset(settings)
-                    self._on_settings_changed()
+                    self._load_preset_path(file.get_path())
             except (GLib.Error, PresetError) as exc:
                 if isinstance(exc, PresetError):
                     show_error(Adw, self, "Invalid preset", str(exc))
+
+        def _load_preset_path(self, path: str) -> None:
+            try:
+                settings = load_preset(path)
+            except (PresetError, OSError) as exc:
+                show_error(Adw, self, "Invalid preset", str(exc))
+                return
+            if settings == self.editor.settings:
+                self.recent.add_preset(path)
+                self._refresh_recent_menu_models()
+                return
+            show_apply_preset_dialog(
+                Adw,
+                self,
+                lambda response: self._finish_apply_preset(response, path, settings),
+            )
+
+        def _finish_apply_preset(self, response: str, path: str, settings) -> None:
+            if response != "apply":
+                return
+            self.editor.settings_controller.apply_preset(settings)
+            self.recent.add_preset(path)
+            self._refresh_recent_menu_models()
 
         def _save_preset(self) -> None:
             self._save_dialog("Save Preset", "settings.csunder", self._finish_save_preset)
@@ -927,7 +1303,6 @@ if Adw is not None:
 
         def _new_variation(self) -> None:
             self.editor.settings_controller.new_variation()
-            self._on_settings_changed()
 
         def _add_batch_images(self) -> None:
             self._open_dialog("Add Images", True, self._finish_add_batch, image_filter=True)
@@ -935,20 +1310,33 @@ if Adw is not None:
         def _finish_add_batch(self, dialog, result) -> None:
             try:
                 files = dialog.open_multiple_finish(result)
-                for index in range(files.get_n_items()):
-                    file = files.get_item(index)
-                    try:
-                        item = BatchItem(file.get_path())
-                        normalized = normalize_image(file.get_path())
-                        item.dimensions = normalized.dimensions
-                        item.source_format = normalized.format
-                        normalized.image.close()
-                        self.batch_items.append(item)
-                    except (ValidationError, OSError) as exc:
-                        show_error(Adw, self, "Unable to add image", str(exc))
-                self._refresh_batch_list()
+                references = [files.get_item(index) for index in range(files.get_n_items())]
+                paths, non_local = local_paths(references)
+                failures = [f"{name}: only local image files are supported" for name in non_local]
+                failures.extend(self._add_batch_paths(paths))
+                self._report_batch_import_failures(failures)
             except GLib.Error:
                 return
+
+        def _add_batch_paths(self, paths) -> list[str]:
+            failures = []
+            for path in paths:
+                try:
+                    self.batch_items.append(inspect_item(path))
+                except (ValidationError, OSError) as exc:
+                    failures.append(f"{Path(path).name}: {exc}")
+            self._refresh_batch_list()
+            return failures
+
+        def _report_batch_import_failures(self, failures: list[str]) -> None:
+            if failures:
+                show_error(
+                    Adw,
+                    self,
+                    "Some images could not be added",
+                    f"{len(failures)} file(s) were not added to the batch queue.",
+                    "\n".join(failures),
+                )
 
         def _refresh_batch_list(self) -> None:
             while (child := self.batch_list.get_first_child()) is not None:

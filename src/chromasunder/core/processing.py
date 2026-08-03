@@ -115,10 +115,10 @@ def process_image(
             )
     original_size = source.size
     angle = settings.angle
-    working_source = _rotate(source, angle)
-    working_mask = _rotate(mask, angle, binary=True) if mask is not None else None
+    working_source = _rotate(source, -angle)
+    working_mask = _rotate(mask, -angle, binary=True) if mask is not None else None
     working_interval = (
-        _rotate(interval_image, angle, binary=True) if interval_image is not None else None
+        _rotate(interval_image, -angle, binary=True) if interval_image is not None else None
     )
     if working_mask is not None and working_mask.size != working_source.size:
         working_source.close()
@@ -174,7 +174,7 @@ def process_image(
     if working_interval is not None:
         working_interval.close()
     if abs(angle) >= 1e-9 and abs(angle) % 360 >= 1e-9:
-        restored = _rotate(output, -angle)
+        restored = _rotate(output, angle)
         output.close()
         output = _crop_center(restored, original_size)
         restored.close()

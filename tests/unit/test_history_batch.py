@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from chromasunder.core.models import PixelSortSettings
 from chromasunder.gui.batch.model import (
@@ -15,6 +16,7 @@ from chromasunder.gui.batch.model import (
     validate_batch_dimensions,
 )
 from chromasunder.gui.history import SettingsHistory
+from chromasunder.gui.settings_controller import SettingsController
 
 
 class HistoryAndBatchTests(unittest.TestCase):
@@ -29,6 +31,24 @@ class HistoryAndBatchTests(unittest.TestCase):
         self.assertTrue(history.can_undo)
         self.assertEqual(history.undo(), second)
         self.assertEqual(history.redo(), third)
+
+    def test_new_variation_changes_only_seed_and_is_undoable(self):
+        original = PixelSortSettings(
+            interval_function="waves",
+            characteristic_length=75,
+            angle=45,
+            randomness=20,
+            seed=123,
+        )
+        controller = SettingsController(original)
+        with patch("chromasunder.core.models.secrets.randbelow", side_effect=(123, 456)):
+            randomized = controller.new_variation()
+
+        self.assertEqual(randomized, original.changed(seed=456))
+        self.assertGreaterEqual(randomized.seed, 0)
+        self.assertLess(randomized.seed, 2**31)
+        self.assertEqual(controller.undo(), original)
+        self.assertEqual(controller.redo(), randomized)
 
     def test_conflict_preflight_and_numeric_suffix(self):
         with tempfile.TemporaryDirectory() as directory:

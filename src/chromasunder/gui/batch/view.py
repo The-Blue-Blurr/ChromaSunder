@@ -31,6 +31,7 @@ def build_batch_view(Gtk, Adw, model, callbacks: dict[str, Callable]):
         button.connect("clicked", lambda _button, action=key: callbacks[action]())
         buttons.insert(button, -1)
     content.append(buttons)
+    content.append(Gtk.Label(label="Drop PNG or JPEG images here", xalign=0))
     list_box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE)
     content.append(list_box)
     revealer.set_child(content)

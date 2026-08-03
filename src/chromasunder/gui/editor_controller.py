@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from chromasunder import ENGINE_VERSION
-from chromasunder.core.imaging import normalize_binary_image, normalize_image
+from chromasunder.core.imaging import SUPPORTED_FORMATS, normalize_binary_image, normalize_image
 from chromasunder.core.models import FileIdentity, RenderSnapshot
 from chromasunder.core.validation import ValidationError, validate_render_configuration
 
@@ -43,7 +43,15 @@ class EditorController:
 
     def open_source(self, path: str) -> None:
         normalized = normalize_image(path)
-        normalized.image.close()
+        try:
+            if normalized.format not in SUPPORTED_FORMATS:
+                raise ValidationError(
+                    "Only PNG and JPEG source images are supported.",
+                    "unsupported-image",
+                )
+        finally:
+            normalized.image.close()
+        self.clear_render()
         self.state = EditorState(source_path=normalized.path)
         self.settings_controller.history.clear()
         self.settings_controller.history.seed(self.settings)

@@ -15,7 +15,7 @@
   cancellation, cache cleanup, and structured failure messages.
 - GTK 4 and libadwaita editor window with dark mode, portals through GTK file
   dialogs, controls, original/rendered toggle, presets, export, keyboard
-  shortcuts, and a collapsible batch queue.
+  shortcuts, drag-and-drop image importing, and a collapsible batch queue.
 - Sequential batch runner with shared settings, seed, mask, interval image,
   dimension validation, PNG and preserve-format modes, output conflict
   handling, failure continuation, cancellation, and summary counts.
@@ -29,7 +29,7 @@
 ```text
 Ruff lint:       passed
 Ruff formatting: passed
-Pytest:          29 passed
+Pytest:          34 passed
 Compileall:      passed
 XML metadata:    parsed successfully
 YAML manifests:  parsed successfully

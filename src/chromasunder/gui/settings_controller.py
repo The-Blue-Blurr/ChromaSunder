@@ -98,4 +98,7 @@ class SettingsController:
         )
 
     def new_variation(self) -> PixelSortSettings:
-        return self.update(seed=PixelSortSettings().seed)
+        seed = PixelSortSettings().seed
+        while seed == self.settings.seed:
+            seed = PixelSortSettings().seed
+        return self.update(seed=seed)

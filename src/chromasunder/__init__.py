@@ -1,4 +1,4 @@
 """ChromaSunder, a GNOME-native graphical pixel sorting tool."""
 
-__version__ = "1.1"
-ENGINE_VERSION = "1"
+__version__ = "1.2"
+ENGINE_VERSION = "2"

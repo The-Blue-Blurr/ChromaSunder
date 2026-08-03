@@ -15,8 +15,8 @@ The MVP is intentionally narrow:
 - One shared settings, mask, and interval image state for a batch
 - Self-hosted Flatpak distribution, not Flathub
 
-Live preview, drag and drop, recent lists, built-in presets, project files,
-parallel batch processing, TIFF, telemetry, and public processing CLI features
+Live preview, recent lists, built-in presets, project files, parallel batch
+processing, TIFF, telemetry, and public processing CLI features
 are deliberately outside the MVP.
 
 ## Development
@@ -51,4 +51,3 @@ not use Flathub.
 See [`ATTRIBUTION.md`](ATTRIBUTION.md), [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md),
 and the About dialog for credit to Satyarth, the original Pixelsort
 contributors, and Kim Asendorf's foundational work.
-

@@ -39,6 +39,29 @@ def show_no_render_dialog(Adw, parent, on_choice: Callable[[str], None]) -> None
     dialog.choose(parent, None, lambda _dialog, result: on_choice(dialog.choose_finish(result)))
 
 
+def show_apply_preset_dialog(Adw, parent, on_choice: Callable[[str], None]) -> None:
+    dialog = Adw.AlertDialog.new(
+        "Apply preset?",
+        "Applying this preset will replace the current processing settings.",
+    )
+    dialog.add_response("cancel", "Cancel")
+    dialog.add_response("apply", "Apply Preset")
+    dialog.set_default_response("apply")
+    dialog.set_response_appearance("apply", Adw.ResponseAppearance.SUGGESTED)
+    dialog.choose(parent, None, lambda _dialog, result: on_choice(dialog.choose_finish(result)))
+
+
+def show_clear_recent_dialog(Adw, parent, item_type: str, on_choice: Callable[[str], None]) -> None:
+    dialog = Adw.AlertDialog.new(
+        f"Clear recent {item_type}?",
+        f"This will remove all recent {item_type} entries.",
+    )
+    dialog.add_response("cancel", "Cancel")
+    dialog.add_response("clear", "Clear History")
+    dialog.set_response_appearance("clear", Adw.ResponseAppearance.DESTRUCTIVE)
+    dialog.choose(parent, None, lambda _dialog, result: on_choice(dialog.choose_finish(result)))
+
+
 def show_conflict_dialog(Adw, parent, on_choice: Callable[[str], None]) -> None:
     dialog = Adw.AlertDialog.new(
         "Some batch outputs already exist.",

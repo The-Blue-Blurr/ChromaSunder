@@ -170,6 +170,37 @@ class CoreEngineTests(unittest.TestCase):
         rendered.close()
         source.close()
 
+    def test_angle_matches_visible_wave_sorting_direction(self):
+        source = Image.new("RGBA", (41, 41), (0, 0, 0, 255))
+        source.putpixel((20, 20), (255, 255, 255, 255))
+        try:
+            for angle, expected_vertical_direction in ((45, -1), (315, 1)):
+                with self.subTest(angle=angle):
+                    rendered = process_image(
+                        source,
+                        PixelSortSettings(
+                            interval_function="waves",
+                            characteristic_length=1000,
+                            angle=angle,
+                            seed=1,
+                        ),
+                    )
+                    try:
+                        _, brightest_x, brightest_y = max(
+                            (rendered.getpixel((x, y))[0], x, y)
+                            for y in range(rendered.height)
+                            for x in range(rendered.width)
+                        )
+                        self.assertGreater(brightest_x, source.width // 2)
+                        self.assertEqual(
+                            -1 if brightest_y < source.height // 2 else 1,
+                            expected_vertical_direction,
+                        )
+                    finally:
+                        rendered.close()
+        finally:
+            source.close()
+
 
 class ImagingAndExportTests(unittest.TestCase):
     def test_normalization_applies_orientation_and_rejects_animation(self):

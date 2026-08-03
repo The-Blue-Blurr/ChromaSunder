@@ -18,7 +18,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from chromasunder.core.enums import IntervalFunction
-from chromasunder.core.imaging import normalize_binary_image, normalize_image
+from chromasunder.core.imaging import SUPPORTED_FORMATS, normalize_binary_image, normalize_image
 from chromasunder.core.models import PixelSortSettings
 from chromasunder.core.validation import ValidationError
 
@@ -87,6 +87,11 @@ class ConflictReport:
 def inspect_item(path: str | Path) -> BatchItem:
     normalized = normalize_image(path)
     try:
+        if normalized.format not in SUPPORTED_FORMATS:
+            raise ValidationError(
+                "Only PNG and JPEG source images are supported.",
+                "unsupported-image",
+            )
         return BatchItem(str(path), normalized.dimensions, normalized.format)
     finally:
         normalized.image.close()
