@@ -58,3 +58,14 @@ rotation was absent in this 0-degree case.
 
 Large-image results and each isolated V1.3 experiment are recorded below as
 the stages are completed.
+
+## Right-Angle Audit
+
+Pillow 11.1.0 normalizes `Image.rotate()` angles modulo 360 and dispatches exact
+0, 90, 180, and 270 degree calls to `copy()` or `transpose()` when no custom
+center or translation is supplied. ChromaSunder uses `expand=True`, no custom
+center, and no translation for the source, mask, interval image, and inverse
+output calls. It therefore already receives Pillow's optimized transpose path,
+regardless of the requested bicubic/nearest filter. A duplicate application
+fast path was rejected. Golden tests cover direction, dimensions, alpha,
+normalized angles, asymmetric binary auxiliaries, and the inverse transform.
