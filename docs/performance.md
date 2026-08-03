@@ -85,3 +85,13 @@ unchanged at 57.5 MiB. The threshold/hue/dense-mask case improved from 3.532 s
 to 3.001 s (2.914-3.227 s), because interval lightness calculation and HLS hue
 calculation remain significant there. This stage changes no row storage or
 output writes.
+
+## Row Abstraction Stage
+
+A private PixelAccess-backed row boundary now owns source, mask, interval, and
+output access. Auxiliary rows are not read when their images are absent, and
+interval/sorting logic calls the storage boundary rather than assigning Pillow
+pixels itself. The 1920x1080 lightness case measured 0.628 s median
+(0.612-0.645 s) versus 0.614 s before the refactor, a 2.3% difference within
+the accepted abstraction cost; median RSS remained 57.5 MiB. The initial
+implementation deliberately retains per-selected-pixel output assignments.

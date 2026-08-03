@@ -24,6 +24,45 @@ ProgressCallback = Callable[[int, int], None]
 CancelCallback = Callable[[], bool]
 
 
+class _PixelAccessRows:
+    """Private row storage boundary backed by Pillow PixelAccess objects."""
+
+    def __init__(
+        self,
+        source: Image.Image,
+        output: Image.Image,
+        mask: Image.Image | None,
+        interval_image: Image.Image | None,
+    ) -> None:
+        self.width = source.width
+        self.source_pixels = source.load()
+        self.output_pixels = output.load()
+        self.mask_pixels = mask.load() if mask is not None else None
+        self.interval_pixels = interval_image.load() if interval_image is not None else None
+
+    def read_source(self, y: int) -> list[tuple[int, int, int, int]]:
+        return [self.source_pixels[x, y] for x in range(self.width)]
+
+    def read_mask(self, y: int) -> list[int] | None:
+        if self.mask_pixels is None:
+            return None
+        return [self.mask_pixels[x, y] for x in range(self.width)]
+
+    def read_interval(self, y: int) -> list[int] | None:
+        if self.interval_pixels is None:
+            return None
+        return [self.interval_pixels[x, y] for x in range(self.width)]
+
+    def commit(
+        self,
+        y: int,
+        positions: list[int],
+        pixels: list[tuple[int, int, int, int]],
+    ) -> None:
+        for index, pixel in zip(positions, pixels, strict=True):
+            self.output_pixels[index, y] = pixel
+
+
 def _rotation_size(size: tuple[int, int], angle: float) -> tuple[int, int]:
     radians = math.radians(angle % 180)
     width, height = size
@@ -64,8 +103,8 @@ def _crop_center(image: Image.Image, size: tuple[int, int]) -> Image.Image:
 
 
 def _sort_row(
-    source_row: Sequence[tuple[int, int, int, int]],
-    output_pixels,
+    source_row: list[tuple[int, int, int, int]],
+    rows: _PixelAccessRows,
     y: int,
     intervals: list[tuple[int, int]],
     mask_row: Sequence[int] | None,
@@ -85,8 +124,7 @@ def _sort_row(
             (source_row[index] for index in positions),
             key=sort_key,
         )
-        for index, pixel in zip(positions, sorted_pixels, strict=True):
-            output_pixels[index, y] = pixel
+        rows.commit(y, positions, sorted_pixels)
 
 
 def process_image(
@@ -142,21 +180,14 @@ def process_image(
     generator = rng or random.Random(settings.seed)
     sort_key = sorting_key_function(settings.sorting_function)
     output = working_source.copy()
-    source_pixels = working_source.load()
-    output_pixels = output.load()
-    mask_pixels = working_mask.load() if working_mask is not None else None
-    interval_pixels = working_interval.load() if working_interval is not None else None
+    rows = _PixelAccessRows(working_source, output, working_mask, working_interval)
     total_rows = working_source.height
     for y in range(total_rows):
         if cancel is not None and cancel():
             raise RenderCancelled
-        row = [source_pixels[x, y] for x in range(working_source.width)]
-        mask_row = [mask_pixels[x, y] for x in range(working_source.width)] if mask_pixels else None
-        interval_row = (
-            [interval_pixels[x, y] for x in range(working_source.width)]
-            if interval_pixels
-            else None
-        )
+        row = rows.read_source(y)
+        mask_row = rows.read_mask(y)
+        interval_row = rows.read_interval(y)
         intervals = detect_intervals(
             row,
             settings.interval_function,
@@ -166,7 +197,7 @@ def process_image(
             generator,
             interval_row,
         )
-        _sort_row(row, output_pixels, y, intervals, mask_row, settings, generator, sort_key)
+        _sort_row(row, rows, y, intervals, mask_row, settings, generator, sort_key)
         if progress is not None:
             progress(y + 1, total_rows)
 
