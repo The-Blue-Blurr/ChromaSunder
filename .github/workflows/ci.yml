@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, dev/v2-rewrite]
 
 permissions:
   contents: read
@@ -22,9 +22,55 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]"
-      - run: ruff check src tests
-      - run: ruff format --check src tests
+      - run: python -m pip install -r reference/python/requirements.txt
+      - run: ruff check src tests reference/python scripts/v2
+      - run: ruff format --check src tests reference/python scripts/v2
       - run: python -m pytest
+
+  native-linux:
+    name: C++ engine (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S engine -B build/engine -DCMAKE_BUILD_TYPE=Debug
+      - run: cmake --build build/engine
+      - run: ctest --test-dir build/engine --output-on-failure
+
+  windows-v2:
+    name: V2 Windows smoke
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.9
+          cache: true
+      - run: flutter --version
+      - run: cmake -S engine -B build/engine -A x64
+      - run: cmake --build build/engine --config Debug
+      - run: ctest --test-dir build/engine -C Debug --output-on-failure
+      - working-directory: packages/chromasunder_native
+        run: dart pub get
+      - working-directory: packages/chromasunder_native
+        run: dart run ffigen --config ffigen.yaml
+      - run: git diff --exit-code -- packages/chromasunder_native/lib/chromasunder_native_bindings_generated.dart
+      - working-directory: packages/chromasunder_native
+        run: dart format --output=none --set-exit-if-changed hook lib test
+      - working-directory: packages/chromasunder_native
+        run: dart analyze
+      - working-directory: packages/chromasunder_native
+        run: dart test
+      - working-directory: app
+        run: flutter pub get
+      - working-directory: app
+        run: dart format --output=none --set-exit-if-changed lib test
+      - working-directory: app
+        run: flutter analyze
+      - working-directory: app
+        run: flutter test
+      - working-directory: app
+        run: flutter build windows --release
 
   flatpak:
     name: Flatpak smoke build

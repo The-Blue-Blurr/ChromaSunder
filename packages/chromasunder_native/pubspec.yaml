@@ -1,0 +1,17 @@
+name: chromasunder_native
+description: Native C ABI integration for the Chroma Sunder engine.
+version: 2.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  code_assets: ^1.0.0
+  hooks: ^1.0.0
+
+dev_dependencies:
+  ffi: ^2.1.4
+  ffigen: ^20.1.1
+  flutter_lints: ^6.0.0
+  test: ^1.28.0
