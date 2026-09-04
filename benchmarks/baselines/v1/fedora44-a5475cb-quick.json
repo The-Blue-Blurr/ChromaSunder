@@ -1,0 +1,326 @@
+{
+  "environment": {
+    "cpu": "x86_64",
+    "logical_cpus": 16,
+    "os": "Linux-7.1.10-200.fc44.x86_64-x86_64-with-glibc2.43",
+    "python": "3.13.5",
+    "pillow": "11.1.0",
+    "commit": "a5475cb"
+  },
+  "procedure": {
+    "warmups": 1,
+    "measured_repetitions": 3
+  },
+  "results": [
+    {
+      "case": {
+        "name": "1080p-none",
+        "size": [
+          1920,
+          1080
+        ],
+        "interval": "none",
+        "sorting": "lightness",
+        "mask": "none",
+        "interval_image": "alternating",
+        "angle": 0.0
+      },
+      "runs": [
+        {
+          "normalize_ns": 31504180,
+          "render_ns": 518097882,
+          "encode_ns": 58640611,
+          "total_ns": 608275621,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 58708
+        },
+        {
+          "normalize_ns": 29231844,
+          "render_ns": 483300932,
+          "encode_ns": 56368415,
+          "total_ns": 568922479,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 59092
+        },
+        {
+          "normalize_ns": 27130089,
+          "render_ns": 482735242,
+          "encode_ns": 56246069,
+          "total_ns": 566133320,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 58892
+        }
+      ],
+      "total_ns": {
+        "median": 568922479,
+        "min": 566133320,
+        "max": 608275621
+      },
+      "peak_rss_kib": {
+        "median": 58892,
+        "min": 58708,
+        "max": 59092
+      }
+    },
+    {
+      "case": {
+        "name": "1080p-threshold-dense",
+        "size": [
+          1920,
+          1080
+        ],
+        "interval": "threshold",
+        "sorting": "hue",
+        "mask": "dense",
+        "interval_image": "alternating",
+        "angle": 0.0
+      },
+      "runs": [
+        {
+          "normalize_ns": 28819886,
+          "render_ns": 2811197377,
+          "encode_ns": 62494782,
+          "total_ns": 2917636497,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 58788
+        },
+        {
+          "normalize_ns": 27032047,
+          "render_ns": 2805978434,
+          "encode_ns": 61162488,
+          "total_ns": 2907016067,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 58956
+        },
+        {
+          "normalize_ns": 29460278,
+          "render_ns": 2873058010,
+          "encode_ns": 60765937,
+          "total_ns": 2976837139,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 59044
+        }
+      ],
+      "total_ns": {
+        "median": 2917636497,
+        "min": 2907016067,
+        "max": 2976837139
+      },
+      "peak_rss_kib": {
+        "median": 58956,
+        "min": 58788,
+        "max": 59044
+      }
+    },
+    {
+      "case": {
+        "name": "1080p-file-alternating",
+        "size": [
+          1920,
+          1080
+        ],
+        "interval": "file",
+        "sorting": "intensity",
+        "mask": "sparse",
+        "interval_image": "alternating",
+        "angle": 0.0
+      },
+      "runs": [
+        {
+          "normalize_ns": 26794877,
+          "render_ns": 381344294,
+          "encode_ns": 46571430,
+          "total_ns": 480644117,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 59288
+        },
+        {
+          "normalize_ns": 30517967,
+          "render_ns": 408389765,
+          "encode_ns": 45622383,
+          "total_ns": 514873693,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 59436
+        },
+        {
+          "normalize_ns": 29178229,
+          "render_ns": 383079852,
+          "encode_ns": 43971776,
+          "total_ns": 482013868,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 59660
+        }
+      ],
+      "total_ns": {
+        "median": 482013868,
+        "min": 480644117,
+        "max": 514873693
+      },
+      "peak_rss_kib": {
+        "median": 59436,
+        "min": 59288,
+        "max": 59660
+      }
+    },
+    {
+      "case": {
+        "name": "1080p-waves-90",
+        "size": [
+          1920,
+          1080
+        ],
+        "interval": "waves",
+        "sorting": "minimum",
+        "mask": "none",
+        "interval_image": "alternating",
+        "angle": 90
+      },
+      "runs": [
+        {
+          "normalize_ns": 31859458,
+          "render_ns": 454270584,
+          "encode_ns": 222687636,
+          "total_ns": 708843163,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 67636
+        },
+        {
+          "normalize_ns": 27921969,
+          "render_ns": 452600453,
+          "encode_ns": 223931315,
+          "total_ns": 704474713,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 67532
+        },
+        {
+          "normalize_ns": 28367517,
+          "render_ns": 456727096,
+          "encode_ns": 226582179,
+          "total_ns": 711715240,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 67656
+        }
+      ],
+      "total_ns": {
+        "median": 708843163,
+        "min": 704474713,
+        "max": 711715240
+      },
+      "peak_rss_kib": {
+        "median": 67636,
+        "min": 67532,
+        "max": 67656
+      }
+    },
+    {
+      "case": {
+        "name": "1080p-edges-45",
+        "size": [
+          1920,
+          1080
+        ],
+        "interval": "edges",
+        "sorting": "saturation",
+        "mask": "none",
+        "interval_image": "alternating",
+        "angle": 45
+      },
+      "runs": [
+        {
+          "normalize_ns": 25615303,
+          "render_ns": 6080577182,
+          "encode_ns": 1017197128,
+          "total_ns": 7123412984,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 141784
+        },
+        {
+          "normalize_ns": 26679784,
+          "render_ns": 6177391661,
+          "encode_ns": 1011948406,
+          "total_ns": 7216085184,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 142180
+        },
+        {
+          "normalize_ns": 28489929,
+          "render_ns": 6106471913,
+          "encode_ns": 1016889877,
+          "total_ns": 7151871865,
+          "dimensions": [
+            1920,
+            1080
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 141984
+        }
+      ],
+      "total_ns": {
+        "median": 7151871865,
+        "min": 7123412984,
+        "max": 7216085184
+      },
+      "peak_rss_kib": {
+        "median": 141984,
+        "min": 141784,
+        "max": 142180
+      }
+    }
+  ]
+}

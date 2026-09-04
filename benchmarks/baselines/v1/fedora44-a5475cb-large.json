@@ -1,0 +1,244 @@
+{
+  "environment": {
+    "cpu": "x86_64",
+    "logical_cpus": 16,
+    "os": "Linux-7.1.10-200.fc44.x86_64-x86_64-with-glibc2.43",
+    "python": "3.13.5",
+    "pillow": "11.1.0",
+    "commit": "a5475cb"
+  },
+  "procedure": {
+    "warmups": 1,
+    "measured_repetitions": 1
+  },
+  "results": [
+    {
+      "case": {
+        "name": "24mp-none",
+        "size": [
+          6000,
+          4000
+        ],
+        "interval": "none",
+        "sorting": "lightness",
+        "mask": "none",
+        "interval_image": "alternating",
+        "angle": 0.0
+      },
+      "runs": [
+        {
+          "normalize_ns": 253143921,
+          "render_ns": 6537315595,
+          "encode_ns": 563444620,
+          "total_ns": 7353928181,
+          "dimensions": [
+            6000,
+            4000
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 401848
+        }
+      ],
+      "total_ns": {
+        "median": 7353928181,
+        "min": 7353928181,
+        "max": 7353928181
+      },
+      "peak_rss_kib": {
+        "median": 401848,
+        "min": 401848,
+        "max": 401848
+      }
+    },
+    {
+      "case": {
+        "name": "24mp-threshold-dense",
+        "size": [
+          6000,
+          4000
+        ],
+        "interval": "threshold",
+        "sorting": "hue",
+        "mask": "dense",
+        "interval_image": "alternating",
+        "angle": 0.0
+      },
+      "runs": [
+        {
+          "normalize_ns": 250280871,
+          "render_ns": 33710231924,
+          "encode_ns": 583104998,
+          "total_ns": 34699154259,
+          "dimensions": [
+            6000,
+            4000
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 401728
+        }
+      ],
+      "total_ns": {
+        "median": 34699154259,
+        "min": 34699154259,
+        "max": 34699154259
+      },
+      "peak_rss_kib": {
+        "median": 401728,
+        "min": 401728,
+        "max": 401728
+      }
+    },
+    {
+      "case": {
+        "name": "24mp-random-sparse",
+        "size": [
+          6000,
+          4000
+        ],
+        "interval": "random",
+        "sorting": "intensity",
+        "mask": "sparse",
+        "interval_image": "alternating",
+        "angle": 0.0
+      },
+      "runs": [
+        {
+          "normalize_ns": 257914943,
+          "render_ns": 3916328969,
+          "encode_ns": 422731041,
+          "total_ns": 4749558738,
+          "dimensions": [
+            6000,
+            4000
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 401848
+        }
+      ],
+      "total_ns": {
+        "median": 4749558738,
+        "min": 4749558738,
+        "max": 4749558738
+      },
+      "peak_rss_kib": {
+        "median": 401848,
+        "min": 401848,
+        "max": 401848
+      }
+    },
+    {
+      "case": {
+        "name": "24mp-file-edges",
+        "size": [
+          6000,
+          4000
+        ],
+        "interval": "file-edges",
+        "sorting": "minimum",
+        "mask": "none",
+        "interval_image": "alternating",
+        "angle": 0.0
+      },
+      "runs": [
+        {
+          "normalize_ns": 250415463,
+          "render_ns": 7347642045,
+          "encode_ns": 505667304,
+          "total_ns": 8258607180,
+          "dimensions": [
+            6000,
+            4000
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 401368
+        }
+      ],
+      "total_ns": {
+        "median": 8258607180,
+        "min": 8258607180,
+        "max": 8258607180
+      },
+      "peak_rss_kib": {
+        "median": 401368,
+        "min": 401368,
+        "max": 401368
+      }
+    },
+    {
+      "case": {
+        "name": "24mp-waves-90",
+        "size": [
+          6000,
+          4000
+        ],
+        "interval": "waves",
+        "sorting": "lightness",
+        "mask": "none",
+        "interval_image": "alternating",
+        "angle": 90
+      },
+      "runs": [
+        {
+          "normalize_ns": 244197995,
+          "render_ns": 6396570381,
+          "encode_ns": 862019105,
+          "total_ns": 7502813776,
+          "dimensions": [
+            6000,
+            4000
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 496420
+        }
+      ],
+      "total_ns": {
+        "median": 7502813776,
+        "min": 7502813776,
+        "max": 7502813776
+      },
+      "peak_rss_kib": {
+        "median": 496420,
+        "min": 496420,
+        "max": 496420
+      }
+    },
+    {
+      "case": {
+        "name": "24mp-none-45",
+        "size": [
+          6000,
+          4000
+        ],
+        "interval": "none",
+        "sorting": "lightness",
+        "mask": "none",
+        "interval_image": "alternating",
+        "angle": 45
+      },
+      "runs": [
+        {
+          "normalize_ns": 250150618,
+          "render_ns": 17760051625,
+          "encode_ns": 11737492152,
+          "total_ns": 29747722354,
+          "dimensions": [
+            6000,
+            4000
+          ],
+          "mode": "RGBA",
+          "peak_rss_kib": 1306828
+        }
+      ],
+      "total_ns": {
+        "median": 29747722354,
+        "min": 29747722354,
+        "max": 29747722354
+      },
+      "peak_rss_kib": {
+        "median": 1306828,
+        "min": 1306828,
+        "max": 1306828
+      }
+    }
+  ]
+}
