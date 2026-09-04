@@ -29,12 +29,41 @@ jobs:
 
   native-linux:
     name: C++ engine (Linux)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libpng-dev libjpeg-turbo8-dev liblcms2-dev
       - run: cmake -S engine -B build/engine -DCMAKE_BUILD_TYPE=Debug
       - run: cmake --build build/engine
       - run: ctest --test-dir build/engine --output-on-failure
+      - run: ./build/engine/chromasunder_engine_benchmark --quick --output native-benchmark.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-benchmark-linux
+          path: native-benchmark.json
+
+  native-sanitizers:
+    name: C++ engine (${{ matrix.sanitizer }})
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - sanitizer: ASan+UBSan
+            option: CHROMASUNDER_ENABLE_SANITIZERS
+            codecs: "ON"
+          - sanitizer: TSan
+            option: CHROMASUNDER_ENABLE_TSAN
+            codecs: "OFF"
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libpng-dev libjpeg-turbo8-dev liblcms2-dev
+      - run: >-
+          cmake -S engine -B build/engine-sanitized -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_COMPILER=clang++
+          -D${{ matrix.option }}=ON -DCHROMASUNDER_ENABLE_CODECS=${{ matrix.codecs }}
+          -DCHROMASUNDER_BUILD_BENCHMARKS=OFF
+      - run: cmake --build build/engine-sanitized
+      - run: ctest --test-dir build/engine-sanitized --output-on-failure
 
   windows-v2:
     name: V2 Windows smoke
@@ -47,9 +76,9 @@ jobs:
           flutter-version: 3.44.9
           cache: true
       - run: flutter --version
-      - run: cmake -S engine -B build/engine -A x64
-      - run: cmake --build build/engine --config Debug
-      - run: ctest --test-dir build/engine -C Debug --output-on-failure
+      - run: cmake -S engine -B build/engine -A x64 -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
+      - run: cmake --build build/engine --config Release
+      - run: ctest --test-dir build/engine -C Release --output-on-failure
       - working-directory: packages/chromasunder_native
         run: dart pub get
       - working-directory: packages/chromasunder_native

@@ -18,9 +18,16 @@
 `flutter doctor -v` reported no issues. The attached physical Android device was unauthorized, so
 the APK was built and inspected locally but not launched on that device during this milestone.
 
-## Fedora Packages Present
+## Fedora Native Packages
 
-No packages were installed during this milestone. The validated host already contained:
+Standalone Milestone 2 codec builds additionally require libpng, libjpeg-turbo, and Little CMS 2
+development headers. The validated versions are libpng 1.6.58, libjpeg-turbo 3.1.3, and Little CMS
+2.16. On Fedora install the corresponding `libpng-devel`, `libjpeg-turbo-devel`, and `lcms2-devel`
+packages. The validated host contained the runtime libraries and libpng/LCMS headers; the JPEG
+header used for local verification was extracted from Fedora's matching development RPM without a
+system installation.
+
+Core tools include:
 
 ```text
 clang-22.1.8-4.fc44.x86_64
@@ -58,9 +65,10 @@ The application-level `abiFilters` and JNI packaging exclusions form the distrib
 and restrict the resulting universal APK to the two approved 64-bit ABIs. This is verified from the
 archive after every release build rather than inferred from Gradle configuration.
 
-The optional GCC sanitizer preset was configured but could not link on this host because
-`/usr/lib64/libasan.so.8.0.0` is absent. Debug and release builds/tests pass; sanitizer portability
-is not a Milestone 1 hard gate.
+The GCC sanitizer runtime is absent on this host, so Milestone 2 sanitizer validation uses Clang
+22.1.8. ASan+UBSan passes with codecs enabled. TSan passes in a separate codec-disabled build and
+covers the worker pool, parallel renderer, determinism tests, and 400-case parity matrix. CI repeats
+both sanitizer configurations on Ubuntu.
 
 ## Native-Assets Adaptation
 

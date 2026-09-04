@@ -39,3 +39,26 @@ ChromaSunder uses the Pillow imaging library at runtime. Pillow's license and
 copyright notices are distributed by the Pillow package and are included in
 the Flatpak build environment.
 
+## libpng
+
+The V2 native engine uses libpng for PNG decoding and encoding. libpng is
+distributed under the libpng-2.0 license. Source and complete notices are at
+<https://github.com/pnggroup/libpng>.
+
+## zlib
+
+libpng uses zlib for compression. zlib is distributed under the zlib license.
+Source and complete notices are at <https://zlib.net/>.
+
+## libjpeg-turbo
+
+The V2 native engine uses libjpeg-turbo for JPEG decoding and encoding.
+libjpeg-turbo is distributed under BSD-3-Clause and includes code under the
+Independent JPEG Group and zlib licenses. Complete notices are distributed by
+the library and available at <https://github.com/libjpeg-turbo/libjpeg-turbo>.
+
+## Little CMS 2
+
+The V2 native engine uses Little CMS 2 for ICC color conversion. Little CMS 2
+is MIT licensed. Source and complete notices are at
+<https://github.com/mm2/Little-CMS>. Optional GPL plug-ins are not enabled.

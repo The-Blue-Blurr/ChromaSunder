@@ -1,7 +1,8 @@
 # V2 Dependency Audit
 
-Versions are locked by `app/pubspec.lock` and `packages/chromasunder_native/pubspec.lock`. No codec,
-color-management, logging, telemetry, analytics, or network dependency has been added.
+Flutter versions are locked by `app/pubspec.lock` and `packages/chromasunder_native/pubspec.lock`.
+Windows native versions are locked by `engine/vcpkg.json` at vcpkg baseline
+`04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4`. Linux uses compatible distribution packages.
 
 | Package/library | Version | Purpose | License | Source | Packaging | Platforms |
 |---|---:|---|---|---|---|---|
@@ -16,11 +17,18 @@ color-management, logging, telemetry, analytics, or network dependency has been 
 | Pillow | 11.1.0 baseline (`>=10.0`) | Temporary V1 reference image loading/rendering | HPND | <https://python-pillow.github.io/> | Migration tooling only; not V2 runtime | Development hosts |
 | pytest | 8.x environment (`>=8`) | V1 and reference validation | MIT | <https://pytest.org/> | Development only | Development hosts |
 | Ruff | 0.6+ policy | Python lint/format checks | MIT | <https://github.com/astral-sh/ruff> | Development/CI only | Development hosts |
+| libpng | 1.6.58 Windows/Fedora; compatible 1.6.x Linux | Lossless PNG8/PNG16 I/O | libpng-2.0 | <https://github.com/pnggroup/libpng> | Dynamic system library on Linux; static private vcpkg linkage on Windows | Linux x86-64, Windows x86-64; upstream supports Android 64-bit |
+| zlib | vcpkg-baseline/distribution version | libpng compression dependency | Zlib | <https://zlib.net/> | Same linkage policy as libpng | Linux x86-64, Windows x86-64; upstream supports Android 64-bit |
+| libjpeg-turbo | 3.2.0 Windows; 3.1.3 Fedora; compatible distro version | JPEG decode/encode | BSD-3-Clause/IJG/zlib notices | <https://libjpeg-turbo.org/> | Dynamic system library on Linux; static private vcpkg linkage on Windows | Linux/Windows x86-64; upstream supports Android ARM64/x86-64 |
+| Little CMS 2 | 2.19.1 Windows; 2.16 Fedora; compatible 2.x Linux | ICC conversion to sRGB at U8/U16 | MIT | <https://github.com/mm2/Little-CMS> | Dynamic system library on Linux; static private vcpkg linkage on Windows; GPL plugins disabled | Linux/Windows x86-64; upstream supports Android 64-bit |
 
-The C++ smoke engine uses only the C++ standard library. It is dynamically bundled as
-`chromasunder_engine` on each application target. Android links the C++ runtime statically into
-that library for the current smoke build. There are no third-party native runtime libraries.
+These focused libraries replace unsafe home-grown implementations: libpng is needed for exact PNG16
+and metadata handling, libjpeg-turbo for robust JPEG parsing/encoding, and Little CMS because ICC
+transforms must not be implemented locally. Their Linux installed footprint is distribution-owned;
+the Windows static release contribution is expected to be a few MiB and will be measured during ZIP
+packaging. None performs network activity or telemetry.
 
-Before adding PNG, JPEG, ICC, resize, or logging libraries in later milestones, record exact
-versions, licenses, linkage, supported architectures, size impact, and notice obligations here and
-update `THIRD_PARTY_NOTICES.md` where required.
+`chromasunder_engine` remains the only Flutter-bundled shared library. Milestone 2 standalone builds
+enable codecs by default. The current Milestone 1 native-assets smoke build disables codecs because
+cross-compiled Android dependency packaging belongs to later integration work; this does not create
+a second engine definition. The full dependency graph is exercised by Linux and Windows native CI.
