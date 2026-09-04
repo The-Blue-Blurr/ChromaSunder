@@ -76,7 +76,7 @@ jobs:
           flutter-version: 3.44.9
           cache: true
       - run: flutter --version
-      - run: cmake -S engine -B build/engine -A x64 -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
+      - run: cmake -S engine -B build/engine -A x64 -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
       - run: cmake --build build/engine --config Release
       - run: ctest --test-dir build/engine -C Release --output-on-failure
       - working-directory: packages/chromasunder_native
