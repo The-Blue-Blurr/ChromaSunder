@@ -1,0 +1,10 @@
+{
+  "interval_function": "none",
+  "sorting_function": "lightness",
+  "lower_threshold": 0.2,
+  "upper_threshold": 0.8,
+  "characteristic_length": 3,
+  "angle": 0,
+  "randomness": 0.0,
+  "seed": 8675309
+}

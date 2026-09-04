@@ -1,0 +1,331 @@
+{
+  "baseline": "v1-a5475cb-pillow-11.1.0",
+  "pixel_format": "RGBA8",
+  "cases": [
+    {
+      "name": "sort-lightness",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/sort-lightness.json",
+      "output": "golden-v1/sort-lightness.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "27de7a90993fb77ee4f032bc5c293490ce471faac4f816e2be2e142776c277e7"
+    },
+    {
+      "name": "sort-hue",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/sort-hue.json",
+      "output": "golden-v1/sort-hue.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "b046dd0414b331fc6dd02ede068b2e574fde9858b66d7434eab3ed653990fe07"
+    },
+    {
+      "name": "sort-saturation",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/sort-saturation.json",
+      "output": "golden-v1/sort-saturation.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "93068b52160d2e573f2c8a615ce94da558486be651750fdbedcfd650d696c30a"
+    },
+    {
+      "name": "sort-intensity",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/sort-intensity.json",
+      "output": "golden-v1/sort-intensity.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "0aaa2692c96b7a8b6eed9cb012c1574519e3271df31573704b77fded091835ae"
+    },
+    {
+      "name": "sort-minimum",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/sort-minimum.json",
+      "output": "golden-v1/sort-minimum.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "1b286357c5376015bff8496f64fdbd1074587ebb7efef58281edb1c2b0eb39aa"
+    },
+    {
+      "name": "interval-none",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/interval-none.json",
+      "output": "golden-v1/interval-none.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "27de7a90993fb77ee4f032bc5c293490ce471faac4f816e2be2e142776c277e7"
+    },
+    {
+      "name": "interval-threshold",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/interval-threshold.json",
+      "output": "golden-v1/interval-threshold.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "db6b65fbb214347a97c55ae24241a0ea88ee9713418721454f76eb559572d01d"
+    },
+    {
+      "name": "interval-edges",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/interval-edges.json",
+      "output": "golden-v1/interval-edges.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "2c4035c6455e76a135cc315b60464b5a9d705f9590e05f55342aa862ba40e7b8"
+    },
+    {
+      "name": "interval-random",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/interval-random.json",
+      "output": "golden-v1/interval-random.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "188bb0ee68fe8936ff486197820651190bbd61149d93763dd89ba2a5efe8bd48"
+    },
+    {
+      "name": "interval-waves",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/interval-waves.json",
+      "output": "golden-v1/interval-waves.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "e3d56475511f5694a4c167138a0f009cb73c1fdc1809f63d7ce0fa743aef6e5a"
+    },
+    {
+      "name": "interval-file",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": "interval-images/runs.png",
+      "settings": "settings/interval-file.json",
+      "output": "golden-v1/interval-file.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "09175c99e43c7317391aa8d9387e482bc9cd7c55b40c5394fbd6b3d59c761fd9"
+    },
+    {
+      "name": "interval-file-edges",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": "interval-images/edges.png",
+      "settings": "settings/interval-file-edges.json",
+      "output": "golden-v1/interval-file-edges.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "d917e8593c17f3e8aec0b46ac7d9856a9c0b1e98916e5b32e741291a23c1f59d"
+    },
+    {
+      "name": "mask-all-on",
+      "source": "sources/matrix.png",
+      "mask": "masks/all-on.png",
+      "interval_image": null,
+      "settings": "settings/mask-all-on.json",
+      "output": "golden-v1/mask-all-on.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "27de7a90993fb77ee4f032bc5c293490ce471faac4f816e2be2e142776c277e7"
+    },
+    {
+      "name": "mask-all-off",
+      "source": "sources/matrix.png",
+      "mask": "masks/all-off.png",
+      "interval_image": null,
+      "settings": "settings/mask-all-off.json",
+      "output": "golden-v1/mask-all-off.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "af0f9ed9c1bae088469b50767a9f00403183b799d97d16fc1a6a891a05e158f4"
+    },
+    {
+      "name": "mask-sparse",
+      "source": "sources/matrix.png",
+      "mask": "masks/sparse.png",
+      "interval_image": null,
+      "settings": "settings/mask-sparse.json",
+      "output": "golden-v1/mask-sparse.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "af0f9ed9c1bae088469b50767a9f00403183b799d97d16fc1a6a891a05e158f4"
+    },
+    {
+      "name": "mask-gapped",
+      "source": "sources/matrix.png",
+      "mask": "masks/gapped.png",
+      "interval_image": null,
+      "settings": "settings/mask-gapped.json",
+      "output": "golden-v1/mask-gapped.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "3279a0cdef70df4591b9fb799cef3b8981b104b509db7f82c3eb90d392a3e9d3"
+    },
+    {
+      "name": "angle-0",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/angle-0.json",
+      "output": "golden-v1/angle-0.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "27de7a90993fb77ee4f032bc5c293490ce471faac4f816e2be2e142776c277e7"
+    },
+    {
+      "name": "angle-90",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/angle-90.json",
+      "output": "golden-v1/angle-90.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "bc3e05cd47581d715fb223b308dcd0ca6b905c0a6c53764ff1cc8edeb82e3653"
+    },
+    {
+      "name": "angle-180",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/angle-180.json",
+      "output": "golden-v1/angle-180.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "b03a2d37a138f0f6f57d6de8fc61b2cb7efef19faa5e3947ea12ead96ff97967"
+    },
+    {
+      "name": "angle-270",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/angle-270.json",
+      "output": "golden-v1/angle-270.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "ed82d11c1e26a0456a8a75704ed3dd74e05d19f3baa3d6619886776e4c76873a"
+    },
+    {
+      "name": "angle-45",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/angle-45.json",
+      "output": "golden-v1/angle-45.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "1b41b69d2f5f6d7affa5d3f96ee0e689fa6fdd5f9fadfb3a4c21759c8be469da"
+    },
+    {
+      "name": "angle-315",
+      "source": "sources/matrix.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/angle-315.json",
+      "output": "golden-v1/angle-315.rgba",
+      "dimensions": [
+        7,
+        5
+      ],
+      "rgba_sha256": "bc248975002d67cd5b4ef9f83e41d510aa43bd0a95d0209ecca47223423bba3b"
+    },
+    {
+      "name": "transparency-ties",
+      "source": "sources/ties-alpha.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/transparency-ties.json",
+      "output": "golden-v1/transparency-ties.rgba",
+      "dimensions": [
+        6,
+        2
+      ],
+      "rgba_sha256": "be228ea9462ddf60209aa4d2d6f1e2c2d82e4fa5c017b45521addc062d4b9bc2"
+    },
+    {
+      "name": "tiny",
+      "source": "sources/tiny.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/tiny.json",
+      "output": "golden-v1/tiny.rgba",
+      "dimensions": [
+        1,
+        1
+      ],
+      "rgba_sha256": "90ce46a260b6278b861ff4abf201fd265bb6c4d91510820c1b2a8767d4056044"
+    },
+    {
+      "name": "asymmetric",
+      "source": "sources/asymmetric.png",
+      "mask": null,
+      "interval_image": null,
+      "settings": "settings/asymmetric.json",
+      "output": "golden-v1/asymmetric.rgba",
+      "dimensions": [
+        3,
+        2
+      ],
+      "rgba_sha256": "304ce7cf7b5ae4ce17a0e2366216e686449b0ba1593d5a3ef39325aab795c565"
+    }
+  ]
+}
