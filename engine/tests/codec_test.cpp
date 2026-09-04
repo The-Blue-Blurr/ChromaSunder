@@ -66,7 +66,11 @@ void write_png_fixture(const std::filesystem::path& path, int color_type, int bi
                        std::size_t width, std::size_t height, void* pixels,
                        std::size_t row_bytes,
                        std::span<const std::uint8_t> profile = {}) {
+#ifdef _WIN32
+  FILE* file = _wfopen(path.c_str(), L"wb");
+#else
   FILE* file = std::fopen(path.c_str(), "wb");
+#endif
   expect(file != nullptr, "fixture PNG opens");
   png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
   png_infop info = png_create_info_struct(png);
